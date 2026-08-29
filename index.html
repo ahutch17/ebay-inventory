@@ -106,7 +106,9 @@ header{border-bottom:1px solid var(--line);background:var(--cream);position:stic
 #controls{margin:20px 0 0;display:grid;gap:8px}
 .in{width:100%;min-height:44px;padding:10px 12px;background:var(--surface);border:1px solid var(--line);border-radius:8px;font:inherit;color:var(--body)}
 .in:focus{border-color:var(--ink);outline:none}
-.filter-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+/* Bins needs less room than categories, so split the row 45/55 instead of
+   50/50 - that is what clipped "All categories" down to "All categori". */
+.filter-grid{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:8px}
 /* Sort sits alone on its own line, so let it span the full width instead of
    leaving a lopsided half-empty gap beside it. */
 #fSort{grid-column:1 / -1}
@@ -119,9 +121,14 @@ header{border-bottom:1px solid var(--line);background:var(--cream);position:stic
 .thumb{flex:0 0 auto;width:52px;height:52px;border-radius:6px;background:var(--sage);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:20px;color:var(--ink)}
 .row-main{flex:1 1 auto;width:0;min-width:0;overflow:hidden}
 .row-title{margin:0;font-size:15px;font-weight:600;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.row-meta{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow:hidden;margin-top:5px}
+/* The meta strip is allowed to wrap. Squeezing the bin pill, the category and
+   the SEO chip onto one 200px line is what produced "Art ... S...". */
+.row-meta{display:flex;align-items:center;gap:4px 6px;flex-wrap:wrap;margin-top:5px}
 .pill{flex:0 0 auto;font-size:12px;padding:2px 8px;border-radius:999px;background:var(--sage);color:var(--ink);white-space:nowrap}
-.cat,.flag{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.cat,.flag{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;min-width:0}
+/* When a real category is present, drop the quiet "SEO 0/5" chip beside it.
+   The full checklist is still one tap away inside the listing card. */
+.row-meta .cat + .cat{display:none}
 .flag{flex:0 0 auto;color:var(--stale);font-weight:600}
 .bubble{flex:0 0 auto;width:56px;height:56px;border-radius:50%;border:2px solid var(--body);display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--cream)}
 .bubble b{font-size:17px;line-height:1;font-variant-numeric:tabular-nums}
@@ -280,6 +287,11 @@ footer{margin:40px 0 0;padding:24px 0 40px;border-top:1px solid var(--line);text
 <input id="restoreInput" type="file" accept=".json,application/json" hidden>
 <div id="modalMount"></div>
 
+<!-- Firebase, compat build: works with plain script tags, no build tools -->
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js" defer></script>
+<script src="firebase.js" defer></script>
 <script src="app.js" defer></script>
 </body>
-  </html>
+</html>
