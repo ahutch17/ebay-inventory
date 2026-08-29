@@ -247,6 +247,7 @@ function uniqueValues(field) {
 /* ---------------- rendering ---------------- */
 function renderStats() {
   var box = $('stats');
+  if (!box) return;
   box.innerHTML = '';
   if (!state.listings.length) { box.hidden = true; return; }
   box.hidden = false;
@@ -281,6 +282,7 @@ function fillSelect(sel, values, allLabel, current) {
 
 function renderControls() {
   var box = $('controls');
+  if (!box) return;
   if (!state.listings.length) { box.hidden = true; return; }
   box.hidden = false;
   fillSelect($('fLoc'), uniqueValues('sku'), '📍 All bins', state.loc);
@@ -329,6 +331,7 @@ function listingRow(l) {
 
 function renderList() {
   var list = $('list');
+  if (!list) return;
   list.innerHTML = '';
   if (!state.listings.length) {
     $('empty').hidden = false;
@@ -363,7 +366,8 @@ function renderAll() {
   renderStats();
   renderControls();
   renderList();
-  $('version').textContent = 'Shelf Sync v' + APP_VERSION + ' \u00b7 saved on this device only';
+  var v = $('version');
+  if (v) v.textContent = 'Shelf Sync v' + APP_VERSION + ' \u00b7 saved on this device only';
 }
 
 /* ---------------- modal plumbing ---------------- */
@@ -804,6 +808,16 @@ function confirmErase() {
 }
 
 /* ---------------- wiring ---------------- */
+/* SAFE WIRING.
+   The old version called $('enterBtn').addEventListener(...) directly. If even
+   one element was missing from index.html, the whole script stopped right there
+   and the Tap to enter button was never connected, so the app froze on the
+   splash screen. This helper skips anything missing instead of dying. */
+function on(id, event, fn) {
+  var node = $(id);
+  if (node) node.addEventListener(event, fn);
+}
+
 function dismissSplash() {
   var s = $('splash');
   if (!s) return;
@@ -811,26 +825,28 @@ function dismissSplash() {
   setTimeout(function () { s.hidden = true; }, 500);
 }
 
-$('enterBtn').addEventListener('click', dismissSplash);
-$('importBtn').addEventListener('click', openImport);
-$('emptyImport').addEventListener('click', openImport);
-$('addBtn').addEventListener('click', function () { openDetail(null); });
-$('loadMore').addEventListener('click', function () { state.visible += PAGE_SIZE; renderList(); });
-$('backupBtn').addEventListener('click', backup);
-$('restoreBtn').addEventListener('click', function () { $('restoreInput').click(); });
-$('resetBtn').addEventListener('click', confirmErase);
+on('enterBtn', 'click', dismissSplash);
+/* Tapping anywhere on the splash also enters, so you can never get stuck. */
+on('splash', 'click', dismissSplash);
+on('importBtn', 'click', openImport);
+on('emptyImport', 'click', openImport);
+on('addBtn', 'click', function () { openDetail(null); });
+on('loadMore', 'click', function () { state.visible += PAGE_SIZE; renderList(); });
+on('backupBtn', 'click', backup);
+on('restoreBtn', 'click', function () { var r = $('restoreInput'); if (r) r.click(); });
+on('resetBtn', 'click', confirmErase);
 
-$('fSearch').addEventListener('input', function (e) { state.q = e.target.value; state.visible = PAGE_SIZE; renderList(); });
-$('fLoc').addEventListener('change', function (e) { state.loc = e.target.value; state.visible = PAGE_SIZE; renderList(); });
-$('fCat').addEventListener('change', function (e) { state.cat = e.target.value; state.visible = PAGE_SIZE; renderList(); });
-$('fSort').addEventListener('change', function (e) { state.sort = e.target.value; state.visible = PAGE_SIZE; renderList(); });
+on('fSearch', 'input', function (e) { state.q = e.target.value; state.visible = PAGE_SIZE; renderList(); });
+on('fLoc', 'change', function (e) { state.loc = e.target.value; state.visible = PAGE_SIZE; renderList(); });
+on('fCat', 'change', function (e) { state.cat = e.target.value; state.visible = PAGE_SIZE; renderList(); });
+on('fSort', 'change', function (e) { state.sort = e.target.value; state.visible = PAGE_SIZE; renderList(); });
 
-$('csvInput').addEventListener('change', function (e) {
+on('csvInput', 'change', function (e) {
   var f = e.target.files && e.target.files[0];
   if (f) runImport(f);
   e.target.value = '';
 });
-$('restoreInput').addEventListener('change', function (e) {
+on('restoreInput', 'change', function (e) {
   var f = e.target.files && e.target.files[0];
   if (f) restore(f);
   e.target.value = '';
@@ -865,11 +881,16 @@ if (location.search.indexOf('demo=1') !== -1 || window.SHELF_SYNC_DEMO) {
   save = function () { return true; };
 }
 
-renderAll();
+/* If part of the layout is missing, say so out loud instead of freezing. */
+try {
+  renderAll();
+} catch (err) {
+  toast('Start-up problem: ' + ((err && err.message) ? err.message : 'index.html may not be updated yet'));
+}
 
 /* Service worker only works over https or localhost, never from a file:// path. */
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('./service-worker.js').catch(function () { });
   });
-}
+       }
