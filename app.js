@@ -1,5 +1,5 @@
 /* ============================================================
-   SHELF SYNC - app.js  (v2.0)
+   SHELF SYNC - app.js  (v2.1)
 
    Plain JavaScript. No React, no build step, no JSX.
    Edit this file directly in GitHub and reload the page.
@@ -17,7 +17,7 @@
    ============================================================ */
 'use strict';
 
-var APP_VERSION = '2.0';
+var APP_VERSION = '2.1';
 var STORAGE_KEY = 'shelf-sync-listings';
 var LEGACY_KEY = 'ebay-manifest-listings';   /* old "The Manifest" data */
 var PAGE_SIZE = 40;
@@ -296,12 +296,68 @@ function renderControls() {
   $('fSort').value = state.sort;
 }
 
+/* ---------------- bin codes for the row tile ----------------
+   The square used to show the first letter of the category, which told you
+   nothing you could act on. It now shows a short code for the physical
+   location, because that is what you need when you walk over to pull the item.
+   The full bin name still shows in the pill next to the title. */
+var BIN_TINTS = ['#C5CBBF', '#D3D8CC', '#DCD5C7', '#CBD2C3', '#D8D2C6'];
+
+function binCode(sku) {
+  var s = String(sku || '').trim();
+  if (!s) return '';
+  var parts = s.replace(/#/g, ' ').split(/[^A-Za-z0-9]+/);
+  var clean = [], i;
+  for (i = 0; i < parts.length; i++) if (parts[i]) clean.push(parts[i]);
+  if (!clean.length) return '';
+  /* A chunk that already mixes letters and digits is almost always the shelf
+     code itself, like "g2b1" or "c8". Trust it and stop there. */
+  for (i = 0; i < clean.length; i++) {
+    if (/[A-Za-z]/.test(clean[i]) && /[0-9]/.test(clean[i])) return clean[i].toUpperCase().slice(0, 4);
+  }
+  var letters = '', digits = '';
+  for (i = 0; i < clean.length; i++) {
+    if (/^[0-9]+$/.test(clean[i])) { if (!digits) digits = clean[i].slice(0, 2); }
+    else letters += clean[i].charAt(0);
+  }
+  letters = letters.toUpperCase();
+  /* One word and no number, like "abby", reads better spelled out a little. */
+  if (!digits && clean.length === 1) letters = clean[0].toUpperCase().slice(0, 4);
+  /* Keep the whole number and trim the letters, so "Shelf 12 Row B" reads SR12. */
+  letters = letters.slice(0, Math.max(1, 4 - digits.length));
+  return (letters + digits).slice(0, 4);
+}
+
+function binTint(sku) {
+  var s = String(sku || '').toLowerCase(), h = 0, i;
+  for (i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 100000;
+  return BIN_TINTS[h % BIN_TINTS.length];
+}
+
+function binTile(l) {
+  var code = binCode(l.sku);
+  var tile = el('div', { class: 'thumb', 'aria-hidden': 'true', text: code || '—' });
+  tile.style.fontFamily = 'inherit';
+  tile.style.fontWeight = '700';
+  tile.style.lineHeight = '1.1';
+  tile.style.letterSpacing = '.06em';
+  tile.style.fontSize = code.length > 3 ? '12px' : '15px';
+  if (code) {
+    tile.style.background = binTint(l.sku);
+    tile.style.color = '#2F3A33';
+  } else {
+    tile.style.background = 'transparent';
+    tile.style.borderStyle = 'dashed';
+    tile.style.color = '#54655A';
+  }
+  return tile;
+}
+
 function listingRow(l) {
   var days = listingDays(l);
   var tone = band(days);
   var color = tone.color;
 
-  var mark = (l.category || l.title || '?').trim().charAt(0).toUpperCase() || '?';
   var flags = 0, seoDone = 0, k;
   for (k in l.work) if (l.work[k]) flags++;
   for (k in l.seo) if (l.seo[k]) seoDone++;
@@ -324,10 +380,10 @@ function listingRow(l) {
 
   return el('button', {
     class: 'row', type: 'button',
-    'aria-label': (l.title || 'listing') + ', ' + (days === null ? 'no start date' : days + ' days'),
+    'aria-label': (l.title || 'listing') + ', ' + (l.sku ? 'bin ' + l.sku : 'no bin') + ', ' + (days === null ? 'no start date' : days + ' days'),
     onclick: function () { openDetail(l.id); }
   }, [
-    el('div', { class: 'thumb', 'aria-hidden': 'true', text: mark }),
+    binTile(l),
     el('div', { class: 'row-main' }, [el('p', { class: 'row-title', text: l.title || '(no title)' }), meta]),
     bubble
   ]);
@@ -916,4 +972,4 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('./service-worker.js').catch(function () { });
   });
-                                      }
+                 }
