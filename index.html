@@ -4,46 +4,117 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shelf Sync — Listing Freshness &amp; SEO Tracker</title>
-    <!-- Official Tailwind CSS Framework Engine Link -->
-    <script src="https://tailwindcss.com"></script>
     <style>
-        @import url('https://googleapis.com');
+        /* 1. Internal Pure CSS Layout Engine (Bypasses Script Censorship) */
+        * { box-sizing: border-box; }
         body { 
             margin: 0; 
-            font-family: 'Inter', sans-serif;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #E6DCCE;
             color: #4A554D;
         }
+        
+        /* Full Page Image Scaling */
+        .splash-container {
+            min-height: 100vh;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 48px 24px;
+            background-image: url('welcome-bg.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            position: relative;
+        }
+
+        /* Rounded Button Design Layout */
+        .enter-btn {
+            width: 100%;
+            max-width: 280px;
+            padding: 14px 28px;
+            background-color: #54655A;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 9999px;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.2s, transform 0.2s;
+            margin-bottom: 80px;
+            z-index: 10;
+        }
+        .enter-btn:hover { background-color: #C0A99E; }
+        .enter-btn:active { transform: scale(0.98); }
+
+        /* Hidden Dashboard View Framework Tags */
         .hidden-panel { display: none !important; }
+        
+        .dashboard-container {
+            padding: 24px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .dash-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-b: 1px solid #C5CBBF;
+            border-bottom: 1px solid #C5CBBF;
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+        .csv-btn {
+            padding: 8px 16px;
+            background-color: #54655A;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+        .empty-notice {
+            text-align: center;
+            padding: 48px 24px;
+            background: #FFFFFF;
+            border: 1px dashed #C5CBBF;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #7C8B80;
+        }
     </style>
 </head>
-<body class="bg-[#E6DCCE]">
+<body>
 
     <!-- SCREEN A: THE PREMIUM CUSTOM BACKGROUND SPLASH SCREEN -->
-    <div id="splash-screen" class="min-h-screen flex flex-col items-center justify-end p-12 text-center relative overflow-hidden select-none bg-cover bg-center bg-no-repeat" 
-         style="background-image: url('welcome-bg.png');">
-        
+    <div id="splash-screen" class="splash-container">
         <!-- Interactive Clickable Entry Overlay Button Layout Component -->
-        <div class="w-full max-w-sm flex flex-col items-center justify-end z-10 pb-24 mx-auto">
-            <button onclick="enterDashboard()" class="px-10 py-3 bg-[#54655A] text-white font-semibold tracking-widest uppercase text-xs rounded-full hover:bg-[#C0A99E] transition-colors duration-300 shadow-md backdrop-blur-sm cursor-pointer">
-                Tap to Enter
-            </button>
-        </div>
-
+        <button onclick="enterDashboard()" class="enter-btn">
+            Tap to Enter
+        </button>
     </div>
 
     <!-- SCREEN B: THE MAIN DASHBOARD SHELL (Hidden until enter button click) -->
-    <div id="dashboard-screen" class="hidden-panel p-6 max-w-md mx-auto">
-        <header class="flex items-center justify-between pb-4 border-b border-[#C5CBBF] mb-6">
-            <div class="flex items-center space-x-2">
-                <div class="w-6 h-6 rounded-full bg-[#54655A] flex items-center justify-center text-white text-[10px] font-bold">S</div>
-                <h2 class="text-base font-bold tracking-wider text-[#54655A]">SHELF SYNC</h2>
+    <div id="dashboard-screen" class="dashboard-container hidden-panel">
+        <header class="dash-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 24px; height: 24px; border-radius: 50%; background-color: #54655A; display: flex; align-items: center; justify-content: center; color: #FFFFFF; font-size: 10px; font-weight: bold;">S</div>
+                <h2 style="font-size: 16px; font-weight: 700; margin: 0; tracking-spacing: 0.05em;">SHELF SYNC</h2>
             </div>
-            <button class="px-3 py-1.5 border border-[#54655A] text-[#54655A] bg-white rounded text-xs font-bold uppercase hover:bg-[#C5CBBF] transition-colors">
+            <button class="csv-btn">
                 📤 Import CSV
             </button>
         </header>
 
-        <main class="text-center py-12 bg-white rounded border border-dashed border-[#C5CBBF] text-xs font-medium text-[#C0A99E] px-4">
+        <main class="empty-notice">
             Welcome to your Dashboard! Import your eBay Active Listings report file to populate your list elements.
         </main>
     </div>
