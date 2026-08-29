@@ -371,7 +371,7 @@ function renderAll() {
   renderControls();
   renderList();
   var v = $('version');
-  if (v) v.textContent = 'Shelf Sync v' + APP_VERSION + ' \u00b7 saved on this device only';
+  if (v) v.textContent = 'Shelf Sync v' + APP_VERSION + ' \u00b7 Sub To Mission';
 }
 
 /* ---------------- modal plumbing ---------------- */
@@ -916,4 +916,4 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('./service-worker.js').catch(function () { });
   });
-     }
+                                      }
