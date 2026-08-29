@@ -13,10 +13,11 @@
    ONE RULE: bump CACHE_VERSION whenever you change app.js or index.html.
    ============================================================ */
 
-const CACHE_VERSION = 'shelf-sync-v3';
+const CACHE_VERSION = 'shelf-sync-v4';
 const CORE_ASSETS = [
   './',
   './index.html',
+  './firebase.js',
   './app.js',
   './manifest.json',
   './icon-192.png',
