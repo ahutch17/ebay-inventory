@@ -1,365 +1,875 @@
-const { useState, useEffect, useMemo, useRef } = React;
-function Icon({ children, size = 16, strokeWidth = 2, className = "" }) {
-  return /* @__PURE__ */ React.createElement(
-    "svg",
-    {
-      width: size,
-      height: size,
-      viewBox: "0 0 24 24",
-      fill: "none",
-      stroke: "currentColor",
-      strokeWidth,
-      strokeLinecap: "round",
-      strokeLinejoin: "round",
-      className
-    },
-    children
-  );
-}
-const Plus = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "5", x2: "12", y2: "19" }), /* @__PURE__ */ React.createElement("line", { x1: "5", y1: "12", x2: "19", y2: "12" }));
-const Check = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("polyline", { points: "20 6 9 17 4 12" }));
-const X = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("line", { x1: "18", y1: "6", x2: "6", y2: "18" }), /* @__PURE__ */ React.createElement("line", { x1: "6", y1: "6", x2: "18", y2: "18" }));
-const ChevronDown = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("polyline", { points: "6 9 12 15 18 9" }));
-const ChevronUp = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("polyline", { points: "18 15 12 9 6 15" }));
-const Search = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("circle", { cx: "11", cy: "11", r: "8" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "21", x2: "16.65", y2: "16.65" }));
-const Trash2 = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("polyline", { points: "3 6 5 6 21 6" }), /* @__PURE__ */ React.createElement("path", { d: "M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" }), /* @__PURE__ */ React.createElement("path", { d: "M10 11v6" }), /* @__PURE__ */ React.createElement("path", { d: "M14 11v6" }), /* @__PURE__ */ React.createElement("path", { d: "M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" }));
-const RotateCcw = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M3 12a9 9 0 1 0 3-6.7L3 8" }), /* @__PURE__ */ React.createElement("polyline", { points: "3 3 3 8 8 8" }));
-const Upload = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" }), /* @__PURE__ */ React.createElement("polyline", { points: "17 8 12 3 7 8" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "3", x2: "12", y2: "15" }));
-const AlertCircle = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "10" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "8", x2: "12", y2: "12" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "16", x2: "12.01", y2: "16" }));
-const Stamp = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "8" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "3" }));
-const NEEDS_WORK_FIELDS = [
-  { key: "title", label: "Title" },
-  { key: "photos", label: "Photos" },
-  { key: "price", label: "Price" },
-  { key: "description", label: "Description" },
-  { key: "specifics", label: "Item specifics" }
+/* ============================================================
+   SHELF SYNC - app.js  (v2.0)
+
+   Plain JavaScript. No React, no build step, no JSX.
+   Edit this file directly in GitHub and reload the page.
+
+   WHAT CHANGED FROM THE OLD VERSION
+   1. Import now READS THE START DATE from your eBay export and parses
+      the "Jun-02-26 05:20:12 PDT" format by hand. That is why every row
+      used to say 0 DAYS - the old code never looked at that column.
+   2. Sold-out scrubbing: anything missing from a fresh export is offered
+      for removal in one tap after the import.
+   3. Filter by location and filter by category, built from your own file.
+   4. Tapping a row opens a card in the middle of the screen with the SEO
+      checklist, a live eBay link, reset freshness, and Copy SEO Prompt.
+   5. Long lists load 40 at a time so 3,000+ listings stay fast.
+   ============================================================ */
+'use strict';
+
+var APP_VERSION = '2.0';
+var STORAGE_KEY = 'shelf-sync-listings';
+var LEGACY_KEY = 'ebay-manifest-listings';   /* old "The Manifest" data */
+var PAGE_SIZE = 40;
+var EBAY_ITEM_URL = 'https://www.ebay.com/itm/';
+var STALE_DAYS = 30;
+
+var SEO_FIELDS = [
+  ['keywordsFront', 'Top keywords in the first 60 characters of the title'],
+  ['fullTitle', 'Using close to all 80 title characters'],
+  ['specificsFilled', 'Every item specific filled in'],
+  ['sixPhotos', 'Six or more photos, first on a plain background'],
+  ['descKeywords', 'Keywords in the first two lines of the description']
 ];
-const SEO_CHECKLIST_FIELDS = [
-  { key: "keywordsFront", label: "Top keywords in first 60 characters of title" },
-  { key: "fullTitle", label: "Using close to all 80 title characters" },
-  { key: "specificsFilled", label: "Every item specific field filled in" },
-  { key: "sixPhotos", label: "6+ photos, first one on plain background" },
-  { key: "descKeywords", label: "Keywords in first two lines of description" }
+var WORK_FIELDS = [
+  ['title', 'Title'], ['photos', 'Photos'], ['price', 'Price'],
+  ['description', 'Description'], ['specifics', 'Item specifics']
 ];
-const PRIORITIES = ["low", "medium", "high"];
-const STORAGE_KEY = "ebay-manifest-listings";
-function uid() {
-  return Math.random().toString(36).slice(2, 10);
-}
-function todayISO() {
-  return (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
-}
-function daysSince(dateStr) {
-  const then = /* @__PURE__ */ new Date(dateStr + "T00:00:00");
-  const now = /* @__PURE__ */ new Date();
-  return Math.floor((now - then) / 864e5);
-}
-function staleness(days) {
-  if (days <= 13) return { color: "#4B7A5A", ring: "#4B7A5A" };
-  if (days <= 30) return { color: "#B8862E", ring: "#B8862E" };
-  return { color: "#B3401F", ring: "#B3401F" };
-}
-const emptyDraft = () => ({
-  id: null,
-  itemNumber: "",
-  title: "",
-  sku: "",
-  category: "",
-  priority: "medium",
-  lastUpdated: todayISO(),
-  notes: "",
-  needsWork: Object.fromEntries(NEEDS_WORK_FIELDS.map((f) => [f.key, false])),
-  seo: Object.fromEntries(SEO_CHECKLIST_FIELDS.map((f) => [f.key, false]))
-});
-function normalize(str) {
-  return (str || "").toString().trim().toLowerCase().replace(/\s+/g, " ");
-}
-function dedupeKey(l) {
-  if (l.itemNumber && normalize(l.itemNumber)) return "num:" + normalize(l.itemNumber);
-  if (l.sku && normalize(l.sku)) return "sku:" + normalize(l.sku);
-  return "title:" + normalize(l.title);
-}
-function findHeader(headers, candidates) {
-  const norm = headers.map((h) => normalize(h));
-  for (const c of candidates) {
-    const idx = norm.findIndex((h) => h === c);
-    if (idx !== -1) return headers[idx];
+var PRIORITIES = ['high', 'medium', 'low'];
+
+/* ---------------- tiny DOM helper ---------------- */
+function el(tag, attrs, kids) {
+  var n = document.createElement(tag);
+  if (attrs) {
+    for (var k in attrs) {
+      var v = attrs[k];
+      if (v === null || v === undefined || v === false) continue;
+      if (k === 'class') n.className = v;
+      else if (k === 'text') n.textContent = v;
+      else if (k.slice(0, 2) === 'on') n.addEventListener(k.slice(2).toLowerCase(), v);
+      else if (v === true) n.setAttribute(k, '');
+      else n.setAttribute(k, v);
+    }
   }
-  for (const c of candidates) {
-    const idx = norm.findIndex((h) => h.includes(c));
-    if (idx !== -1) return headers[idx];
+  if (kids) {
+    var list = Array.isArray(kids) ? kids : [kids];
+    for (var i = 0; i < list.length; i++) {
+      var c = list[i];
+      if (c === null || c === undefined || c === false) continue;
+      n.appendChild(typeof c === 'object' ? c : document.createTextNode(String(c)));
+    }
+  }
+  return n;
+}
+function $(id) { return document.getElementById(id); }
+
+/* ---------------- dates ---------------- */
+var MONTHS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+
+/* eBay exports look like: Jun-02-26 05:20:12 PDT
+   Plain JavaScript cannot read that, so we take it apart ourselves.
+   The clock time and timezone are ignored on purpose - we count whole days. */
+function parseEbayDate(raw) {
+  if (!raw) return null;
+  var s = String(raw).trim();
+  if (!s) return null;
+  var m = s.match(/^([A-Za-z]{3})[a-z]*[-\s]+(\d{1,2})[-,\s]+(\d{2,4})/);
+  if (m) {
+    var mon = MONTHS[m[1].toLowerCase()];
+    if (mon === undefined) return null;
+    var year = parseInt(m[3], 10);
+    if (m[3].length <= 2) year += year < 70 ? 2000 : 1900;
+    var d = new Date(year, mon, parseInt(m[2], 10));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) {
+    var iso = new Date(+m[1], +m[2] - 1, +m[3]);
+    return isNaN(iso.getTime()) ? null : iso;
+  }
+  var fb = new Date(s);
+  return isNaN(fb.getTime()) ? null : fb;
+}
+function toISODate(d) {
+  if (!d) return '';
+  var mm = String(d.getMonth() + 1), dd = String(d.getDate());
+  if (mm.length < 2) mm = '0' + mm;
+  if (dd.length < 2) dd = '0' + dd;
+  return d.getFullYear() + '-' + mm + '-' + dd;
+}
+function todayISO() { return toISODate(new Date()); }
+function daysSinceISO(iso) {
+  if (!iso) return null;
+  var p = String(iso).split('-');
+  if (p.length !== 3) return null;
+  var then = new Date(+p[0], +p[1] - 1, +p[2]);
+  if (isNaN(then.getTime())) return null;
+  var now = new Date();
+  var start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.max(0, Math.round((start - then) / 86400000));
+}
+
+/* The bubble counts from the last freshness reset, otherwise the real start date. */
+function baseDate(l) { return l.freshnessResetAt || l.startDate || ''; }
+function listingDays(l) { return daysSinceISO(baseDate(l)); }
+
+/* Colour AND a soft fill for the day bubble.
+   Past the 30 day target window the bubble fills with the earthy rose tone
+   from your design. The numeral stays a darker rust so it is still readable. */
+function band(days) {
+  if (days === null) return { color: '#54655A', tint: '#F7F2EB', label: 'no date' };
+  if (days <= 13) return { color: '#4F7B5C', tint: '#E9F0EA', label: 'fresh' };
+  if (days <= STALE_DAYS) return { color: '#6E7A4F', tint: '#F0F1E6', label: 'aging' };
+  return { color: '#A2604B', tint: '#F3E4DC', label: 'stale' };
+}
+
+/* ---------------- storage ---------------- */
+function blankChecks(fields) {
+  var o = {};
+  for (var i = 0; i < fields.length; i++) o[fields[i][0]] = false;
+  return o;
+}
+function newListing() {
+  return {
+    id: 'l' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+    itemNumber: '', title: '', sku: '', category: '',
+    startDate: '', freshnessResetAt: '',
+    quantity: '', price: '', sold: '', watchers: '',
+    priority: 'medium', notes: '',
+    work: blankChecks(WORK_FIELDS), seo: blankChecks(SEO_FIELDS),
+    lastImportedAt: ''
+  };
+}
+function normalize(raw) {
+  var l = newListing();
+  if (!raw || typeof raw !== 'object') return l;
+  var keys = ['itemNumber', 'title', 'sku', 'category', 'startDate', 'freshnessResetAt',
+    'quantity', 'price', 'sold', 'watchers', 'priority', 'notes', 'lastImportedAt'];
+  for (var i = 0; i < keys.length; i++) {
+    if (raw[keys[i]] !== undefined && raw[keys[i]] !== null) l[keys[i]] = String(raw[keys[i]]);
+  }
+  if (raw.id) l.id = String(raw.id);
+  if (!l.freshnessResetAt && raw.lastUpdated) l.freshnessResetAt = String(raw.lastUpdated);
+  if (PRIORITIES.indexOf(l.priority) === -1) l.priority = 'medium';
+  var w = raw.work || raw.needsWork || {};
+  for (var a = 0; a < WORK_FIELDS.length; a++) l.work[WORK_FIELDS[a][0]] = !!w[WORK_FIELDS[a][0]];
+  var s = raw.seo || {};
+  for (var b = 0; b < SEO_FIELDS.length; b++) l.seo[SEO_FIELDS[b][0]] = !!s[SEO_FIELDS[b][0]];
+  return l;
+}
+function load() {
+  var raw = null;
+  try { raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_KEY); } catch (e) { raw = null; }
+  if (!raw) return [];
+  try {
+    var parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.map(normalize) : [];
+  } catch (e) { return []; }
+}
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.listings)); return true; }
+  catch (e) { toast('Could not save - this device storage may be full.'); return false; }
+}
+
+/* ---------------- state ---------------- */
+var state = { listings: [], visible: PAGE_SIZE, q: '', loc: '', cat: '', sort: 'stale' };
+function findListing(id) {
+  for (var i = 0; i < state.listings.length; i++) if (state.listings[i].id === id) return state.listings[i];
+  return null;
+}
+
+/* ---------------- toast + clipboard ---------------- */
+var toastTimer = null;
+function toast(msg) {
+  var old = $('toast');
+  if (old) old.parentNode.removeChild(old);
+  var t = el('div', { id: 'toast', role: 'status', text: msg });
+  document.body.appendChild(t);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 2800);
+}
+function copyText(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(
+      function () { toast('Copied. Paste it into your AI chat.'); },
+      function () { legacyCopy(text); });
+  } else legacyCopy(text);
+}
+function legacyCopy(text) {
+  var ta = el('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;opacity:0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); toast('Copied. Paste it into your AI chat.'); }
+  catch (e) { toast('Copy failed - long-press to select instead.'); }
+  ta.parentNode.removeChild(ta);
+}
+
+/* ---------------- filtering + sorting ---------------- */
+function matches(l) {
+  if (state.loc && (l.sku || '') !== state.loc) return false;
+  if (state.cat && (l.category || '') !== state.cat) return false;
+  if (state.q) {
+    var hay = ((l.title || '') + ' ' + (l.sku || '') + ' ' + (l.itemNumber || '') + ' ' + (l.category || '')).toLowerCase();
+    if (hay.indexOf(state.q.toLowerCase()) === -1) return false;
+  }
+  return true;
+}
+function byDays(dir) {
+  return function (a, b) {
+    var da = listingDays(a), db = listingDays(b);
+    if (da === null && db === null) return 0;
+    if (da === null) return 1;
+    if (db === null) return -1;
+    return dir === 'desc' ? db - da : da - db;
+  };
+}
+function sortListings(arr) {
+  var rank = { high: 0, medium: 1, low: 2 };
+  var copy = arr.slice();
+  if (state.sort === 'stale') copy.sort(byDays('desc'));
+  else if (state.sort === 'fresh') copy.sort(byDays('asc'));
+  else if (state.sort === 'priority') copy.sort(function (a, b) { return rank[a.priority] - rank[b.priority]; });
+  else if (state.sort === 'watchers') copy.sort(function (a, b) { return (parseInt(b.watchers, 10) || 0) - (parseInt(a.watchers, 10) || 0); });
+  else if (state.sort === 'az') copy.sort(function (a, b) { return (a.title || '').localeCompare(b.title || ''); });
+  return copy;
+}
+function uniqueValues(field) {
+  var seen = {};
+  for (var i = 0; i < state.listings.length; i++) {
+    var v = (state.listings[i][field] || '').trim();
+    if (v) seen[v] = true;
+  }
+  return Object.keys(seen).sort(function (a, b) { return a.localeCompare(b); });
+}
+
+/* ---------------- rendering ---------------- */
+function renderStats() {
+  var box = $('stats');
+  box.innerHTML = '';
+  if (!state.listings.length) { box.hidden = true; return; }
+  box.hidden = false;
+  var stale = 0, week = 0, flagged = 0;
+  for (var i = 0; i < state.listings.length; i++) {
+    var l = state.listings[i];
+    var d = listingDays(l);
+    if (d !== null && d > STALE_DAYS) stale++;
+    var r = daysSinceISO(l.freshnessResetAt);
+    if (r !== null && r <= 6) week++;
+    for (var k in l.work) { if (l.work[k]) { flagged++; break; } }
+  }
+  var rows = [
+    ['Tracked', state.listings.length, '#2F3A33'],
+    ['Stale, 30 days plus', stale, '#A2604B'],
+    ['Updated this week', week, '#4F7B5C'],
+    ['Flagged to fix', flagged, '#6E7A4F']
+  ];
+  for (var s = 0; s < rows.length; s++) {
+    var b = el('b', { text: String(rows[s][1]) });
+    b.style.color = rows[s][2];
+    box.appendChild(el('div', { class: 'stat' }, [b, el('span', { text: rows[s][0] })]));
+  }
+}
+
+function fillSelect(sel, values, allLabel, current) {
+  sel.innerHTML = '';
+  sel.appendChild(el('option', { value: '', text: allLabel }));
+  for (var i = 0; i < values.length; i++) sel.appendChild(el('option', { value: values[i], text: values[i] }));
+  sel.value = values.indexOf(current) === -1 ? '' : current;
+}
+
+function renderControls() {
+  var box = $('controls');
+  if (!state.listings.length) { box.hidden = true; return; }
+  box.hidden = false;
+  fillSelect($('fLoc'), uniqueValues('sku'), '📍 All bins', state.loc);
+  fillSelect($('fCat'), uniqueValues('category'), '📂 All categories', state.cat);
+  state.loc = $('fLoc').value;
+  state.cat = $('fCat').value;
+  $('fSort').value = state.sort;
+}
+
+function listingRow(l) {
+  var days = listingDays(l);
+  var tone = band(days);
+  var color = tone.color;
+
+  var mark = (l.category || l.title || '?').trim().charAt(0).toUpperCase() || '?';
+  var flags = 0, seoDone = 0, k;
+  for (k in l.work) if (l.work[k]) flags++;
+  for (k in l.seo) if (l.seo[k]) seoDone++;
+
+  var meta = el('div', { class: 'row-meta' }, [
+    el('span', { class: 'pill', text: l.sku ? l.sku : 'no bin' }),
+    l.category ? el('span', { class: 'cat', text: l.category }) : null,
+    flags
+      ? el('span', { class: 'flag', text: flags + ' to fix' })
+      : el('span', { class: 'cat', text: 'SEO ' + seoDone + '/' + SEO_FIELDS.length })
+  ]);
+
+  var num = el('b', { class: 'mono', text: days === null ? '--' : String(days) });
+  var unit = el('span', { text: days === null ? 'no date' : 'days' });
+  num.style.color = color;
+  unit.style.color = color;
+  var bubble = el('div', { class: 'bubble' }, [num, unit]);
+  bubble.style.borderColor = color;
+  bubble.style.background = tone.tint;
+
+  return el('button', {
+    class: 'row', type: 'button',
+    'aria-label': (l.title || 'listing') + ', ' + (days === null ? 'no start date' : days + ' days'),
+    onclick: function () { openDetail(l.id); }
+  }, [
+    el('div', { class: 'thumb', 'aria-hidden': 'true', text: mark }),
+    el('div', { class: 'row-main' }, [el('p', { class: 'row-title', text: l.title || '(no title)' }), meta]),
+    bubble
+  ]);
+}
+
+function renderList() {
+  var list = $('list');
+  list.innerHTML = '';
+  if (!state.listings.length) {
+    $('empty').hidden = false;
+    $('loadMoreWrap').hidden = true;
+    $('count').textContent = '';
+    return;
+  }
+  $('empty').hidden = true;
+
+  var shown = sortListings(state.listings.filter(matches));
+  $('count').textContent = shown.length === state.listings.length
+    ? shown.length + ' listings'
+    : shown.length + ' of ' + state.listings.length + ' listings';
+
+  if (!shown.length) {
+    list.appendChild(el('p', { class: 'note', text: 'Nothing matches those filters.' }));
+    $('loadMoreWrap').hidden = true;
+    return;
+  }
+
+  var slice = shown.slice(0, state.visible);
+  var frag = document.createDocumentFragment();
+  for (var i = 0; i < slice.length; i++) frag.appendChild(listingRow(slice[i]));
+  list.appendChild(frag);
+
+  var more = shown.length - slice.length;
+  $('loadMoreWrap').hidden = more <= 0;
+  if (more > 0) $('loadMore').textContent = 'Show ' + Math.min(more, PAGE_SIZE) + ' more, ' + more + ' left';
+}
+
+function renderAll() {
+  renderStats();
+  renderControls();
+  renderList();
+  $('version').textContent = 'Shelf Sync v' + APP_VERSION + ' \u00b7 saved on this device only';
+}
+
+/* ---------------- modal plumbing ---------------- */
+function closeModal() {
+  $('modalMount').innerHTML = '';
+  document.body.style.overflow = '';
+}
+function openModal(title, bodyNodes, footNodes) {
+  var card = el('div', { class: 'card', role: 'dialog', 'aria-modal': 'true', 'aria-label': title }, [
+    el('div', { class: 'card-head' }, [
+      el('h2', { text: title }),
+      el('button', { class: 'x', type: 'button', 'aria-label': 'Close', text: '\u2715', onclick: closeModal })
+    ]),
+    el('div', { class: 'card-body' }, bodyNodes),
+    footNodes ? el('div', { class: 'card-foot' }, footNodes) : null
+  ]);
+  var scrim = el('div', { class: 'scrim' }, card);
+  scrim.addEventListener('click', function (e) { if (e.target === scrim) closeModal(); });
+  $('modalMount').innerHTML = '';
+  $('modalMount').appendChild(scrim);
+  document.body.style.overflow = 'hidden';
+  return card;
+}
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+
+function field(labelText, control) {
+  return el('label', { class: 'field' }, [el('p', { class: 'label', text: labelText }), control]);
+}
+function textInput(value, placeholder, onInput, type) {
+  var i = el('input', { class: 'in', type: type || 'text', placeholder: placeholder || '' });
+  i.value = value || '';
+  i.addEventListener('input', function () { onInput(i.value); });
+  return i;
+}
+
+/* ---------------- the SEO prompt ---------------- */
+function seoPrompt(l) {
+  var url = l.itemNumber ? EBAY_ITEM_URL + l.itemNumber : '(paste your listing link here)';
+  var days = listingDays(l);
+  var lines = [
+    'Audit and rewrite this eBay listing so it ranks better in search and sells faster.',
+    '',
+    'Listing: ' + url,
+    'Current title: ' + (l.title || '(unknown)')
+  ];
+  if (l.category) lines.push('Category: ' + l.category);
+  if (days !== null) lines.push('It has been listed about ' + days + ' days without selling.');
+  lines.push('');
+  lines.push('Please do all of the following:');
+  lines.push('1. Open the listing and audit the current title, description, photos and price.');
+  lines.push('2. Write a new title using close to all 80 characters, with the strongest buyer search keywords in the first 60.');
+  lines.push('3. Rewrite the item description. Keywords in the first two lines, short scannable lines, no filler or clutter words.');
+  lines.push('4. Tell me exactly which item specifics are missing or weak, and what to put in each one.');
+  lines.push('5. Sanity check the price against recent completed sales for the same item.');
+  lines.push('6. List anything else holding this listing back in search, in priority order.');
+  return lines.join('\n');
+}
+
+/* ---------------- SCREEN 4: center-peek detail card ---------------- */
+function openDetail(id) {
+  var isNew = !id;
+  var listing = isNew ? newListing() : findListing(id);
+  if (!listing) return;
+
+  /* Existing listing: every change saves immediately.
+     Brand new listing: nothing is saved until you press Add. */
+  function touch() { if (!isNew) { save(); renderStats(); renderList(); } }
+
+  var daysLine = el('p', { class: 'days-line' });
+  function refreshDays() {
+    var d = listingDays(listing);
+    if (d === null) { daysLine.textContent = 'No start date yet, so there is no day count.'; return; }
+    daysLine.textContent = d + ' days ' + (listing.freshnessResetAt ? 'since you last updated it.' : 'since the eBay start date.');
+  }
+  refreshDays();
+
+  var seoBox = el('div');
+  var workBox = el('div');
+  function drawChecks(box, fields, store) {
+    box.innerHTML = '';
+    for (var i = 0; i < fields.length; i++) {
+      (function (key, label) {
+        var cb = el('input', { type: 'checkbox' });
+        cb.checked = !!store[key];
+        cb.addEventListener('change', function () { store[key] = cb.checked; touch(); });
+        box.appendChild(el('label', { class: 'check' }, [cb, el('span', { text: label })]));
+      })(fields[i][0], fields[i][1]);
+    }
+  }
+  function redrawChecks() {
+    drawChecks(seoBox, SEO_FIELDS, listing.seo);
+    drawChecks(workBox, WORK_FIELDS, listing.work);
+  }
+  redrawChecks();
+
+  var prio = el('select', { class: 'in' });
+  for (var p = 0; p < PRIORITIES.length; p++) {
+    prio.appendChild(el('option', { value: PRIORITIES[p], text: PRIORITIES[p].charAt(0).toUpperCase() + PRIORITIES[p].slice(1) }));
+  }
+  prio.value = listing.priority;
+  prio.addEventListener('change', function () { listing.priority = prio.value; touch(); });
+
+  var notes = el('textarea', { class: 'in', rows: '3', placeholder: 'Photos look washed out, needs a retake' });
+  notes.value = listing.notes;
+  notes.addEventListener('input', function () { listing.notes = notes.value; touch(); });
+
+  var actions = el('div', { style: 'display:grid;gap:8px' });
+  var copyBtn = el('button', {
+    class: 'btn btn-solid btn-full', type: 'button', text: 'Copy SEO prompt',
+    onclick: function () { copyText(seoPrompt(listing)); }
+  });
+  var resetBtn = el('button', {
+    class: 'btn btn-quiet btn-full', type: 'button', text: 'Mark updated - reset to 0 days',
+    onclick: function () {
+      listing.freshnessResetAt = todayISO();
+      for (var k in listing.work) listing.work[k] = false;
+      touch(); refreshDays(); redrawChecks();
+      toast('Freshness reset to 0 days.');
+    }
+  });
+  function buildEbayAction() {
+    if (!listing.itemNumber) return el('p', { class: 'note', text: 'Add the eBay item number above to get a direct link.' });
+    var a = el('a', { class: 'btn btn-quiet btn-full', href: EBAY_ITEM_URL + listing.itemNumber, target: '_blank', rel: 'noopener', text: 'Open this listing on eBay' });
+    a.style.textDecoration = 'none';
+    return a;
+  }
+  var ebaySlot = el('div', {}, buildEbayAction());
+  actions.appendChild(copyBtn);
+  actions.appendChild(resetBtn);
+  actions.appendChild(ebaySlot);
+
+  var body = [
+    daysLine,
+    field('Title', textInput(listing.title, 'Vintage 1990s denim jacket, size M', function (v) { listing.title = v; touch(); })),
+    el('div', { class: 'two' }, [
+      field('eBay item number', textInput(listing.itemNumber, '188551378124', function (v) {
+        listing.itemNumber = v.trim();
+        ebaySlot.innerHTML = '';
+        ebaySlot.appendChild(buildEbayAction());
+        touch();
+      })),
+      field('Location / SKU', textInput(listing.sku, 'bookshelf-book', function (v) { listing.sku = v; touch(); }))
+    ]),
+    el('div', { class: 'two' }, [
+      field('Category', textInput(listing.category, 'Books', function (v) { listing.category = v; touch(); })),
+      field('eBay start date', textInput(listing.startDate, '', function (v) { listing.startDate = v; touch(); refreshDays(); }, 'date'))
+    ]),
+    field('Priority', prio),
+    el('div', {}, [el('p', { class: 'label', text: 'SEO checklist' }), seoBox]),
+    el('div', {}, [el('p', { class: 'label', text: 'Needs work' }), workBox]),
+    field('Notes', notes),
+    el('div', {}, [el('p', { class: 'label', text: 'Actions' }), actions])
+  ];
+
+  var foot;
+  if (isNew) {
+    foot = [
+      el('button', { class: 'btn btn-quiet', type: 'button', text: 'Cancel', onclick: closeModal }),
+      el('button', {
+        class: 'btn btn-solid', type: 'button', text: 'Add listing',
+        onclick: function () {
+          if (!listing.title.trim()) { toast('Give it a title first.'); return; }
+          state.listings.push(listing);
+          save(); renderAll(); closeModal();
+          toast('Added to the shelf.');
+        }
+      })
+    ];
+  } else {
+    foot = [
+      el('button', {
+        class: 'btn btn-danger', type: 'button', text: 'Delete',
+        onclick: function () {
+          var keep = [];
+          for (var i = 0; i < state.listings.length; i++) if (state.listings[i].id !== listing.id) keep.push(state.listings[i]);
+          state.listings = keep;
+          save(); renderAll(); closeModal();
+          toast('Listing deleted.');
+        }
+      }),
+      el('button', { class: 'btn btn-solid', type: 'button', text: 'Done', onclick: closeModal })
+    ];
+  }
+
+  openModal(isNew ? 'New listing' : (listing.title || 'Listing'), body, foot);
+}
+
+/* ---------------- CSV import ---------------- */
+function normHeader(h) { return String(h || '').trim().toLowerCase(); }
+
+/* Finds a column even if eBay renames it slightly.
+   .trim() also removes the invisible marker byte at the very start of the file. */
+function findCol(headers, candidates) {
+  var norm = [], i;
+  for (i = 0; i < headers.length; i++) norm.push(normHeader(headers[i]));
+  for (i = 0; i < candidates.length; i++) {
+    var exact = norm.indexOf(candidates[i]);
+    if (exact !== -1) return headers[exact];
+  }
+  for (i = 0; i < candidates.length; i++) {
+    for (var j = 0; j < norm.length; j++) {
+      if (norm[j].indexOf(candidates[i]) !== -1) return headers[j];
+    }
   }
   return null;
 }
-function loadListings() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch (e) {
-    return [];
-  }
+function cell(row, col) { return col ? String(row[col] === undefined || row[col] === null ? '' : row[col]).trim() : ''; }
+function keyFor(o) {
+  if (o.itemNumber) return 'n:' + o.itemNumber;
+  if (o.sku) return 's:' + o.sku.toLowerCase();
+  return 't:' + (o.title || '').toLowerCase();
 }
-function saveListings(list) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-    return true;
-  } catch (e) {
-    return false;
-  }
+
+function openImport() {
+  var body = [
+    el('p', { class: 'note' }, 'In Seller Hub open Active listings, then Download report, and export as CSV. Item age is read straight from the Start date column.'),
+    el('p', { class: 'note' }, 'Items already on your shelf keep their checklists and notes. Anything missing from the new file has sold, and you will be asked whether to remove it.'),
+    el('button', {
+      class: 'btn btn-solid btn-full', type: 'button', text: 'Choose CSV file',
+      onclick: function () { $('csvInput').click(); }
+    }),
+    el('div', { id: 'importResult' })
+  ];
+  openModal('Import from eBay', body, [el('button', { class: 'btn btn-quiet', type: 'button', text: 'Close', onclick: closeModal })]);
 }
-function ListingTracker() {
-  const [listings, setListings] = useState([]);
-  const [loaded, setLoaded] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [draft, setDraft] = useState(emptyDraft());
-  const [expandedId, setExpandedId] = useState(null);
-  const [sortBy, setSortBy] = useState("stale");
-  const [query, setQuery] = useState("");
-  const [confirmReset, setConfirmReset] = useState(false);
-  const [saveError, setSaveError] = useState(false);
-  const [showImport, setShowImport] = useState(false);
-  const [importResult, setImportResult] = useState(null);
-  const [importError, setImportError] = useState(null);
-  const fileInputRef = useRef(null);
-  useEffect(() => {
-    setListings(loadListings());
-    setLoaded(true);
-  }, []);
-  function persist(next) {
-    setListings(next);
-    const ok = saveListings(next);
-    setSaveError(!ok);
+
+function runImport(file) {
+  var out = $('importResult');
+  if (typeof Papa === 'undefined') {
+    if (out) { out.innerHTML = ''; out.appendChild(el('p', { class: 'note', text: 'The CSV reader did not load. Check your connection and reload the page.' })); }
+    return;
   }
-  function openNew() {
-    setDraft(emptyDraft());
-    setShowForm(true);
-  }
-  function saveDraft() {
-    if (!draft.title.trim()) return;
-    let next;
-    if (draft.id) {
-      next = listings.map((l) => l.id === draft.id ? draft : l);
-    } else {
-      next = [...listings, { ...draft, id: uid() }];
-    }
-    persist(next);
-    setShowForm(false);
-    setDraft(emptyDraft());
-  }
-  function editListing(l) {
-    setDraft(l);
-    setShowForm(true);
-  }
-  function deleteListing(id) {
-    persist(listings.filter((l) => l.id !== id));
-  }
-  function markUpdatedToday(id) {
-    const next = listings.map(
-      (l) => l.id === id ? { ...l, lastUpdated: todayISO(), needsWork: Object.fromEntries(NEEDS_WORK_FIELDS.map((f) => [f.key, false])) } : l
-    );
-    persist(next);
-  }
-  function toggleNeedsWork(id, key) {
-    const next = listings.map(
-      (l) => l.id === id ? { ...l, needsWork: { ...l.needsWork, [key]: !l.needsWork[key] } } : l
-    );
-    persist(next);
-  }
-  function toggleSeo(id, key) {
-    const next = listings.map(
-      (l) => l.id === id ? { ...l, seo: { ...l.seo || {}, [key]: !(l.seo || {})[key] } } : l
-    );
-    persist(next);
-  }
-  function handleImportFile(file) {
-    setImportError(null);
-    setImportResult(null);
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        try {
-          const headers = results.meta.fields || [];
-          const titleCol = findHeader(headers, ["title"]);
-          const skuCol = findHeader(headers, ["custom label (sku)", "custom label", "sku"]);
-          const numCol = findHeader(headers, ["item number", "itemid", "item id"]);
-          const catCol = findHeader(headers, ["category", "category name"]);
-          if (!titleCol) {
-            setImportError("Couldn't find a Title column in that file. Make sure it's exported from eBay's Active Listings report.");
-            return;
-          }
-          const existingKeys = new Map(listings.map((l) => [dedupeKey(l), l]));
-          const seenInFile = /* @__PURE__ */ new Set();
-          let added = [];
-          let updated = 0;
-          let skippedDupe = 0;
-          let skippedBlank = 0;
-          for (const row of results.data) {
-            const title = (row[titleCol] || "").trim();
-            if (!title) {
-              skippedBlank++;
-              continue;
-            }
-            const candidate = {
-              itemNumber: numCol ? (row[numCol] || "").trim() : "",
-              sku: skuCol ? (row[skuCol] || "").trim() : "",
-              title,
-              category: catCol ? (row[catCol] || "").trim() : ""
-            };
-            const key = dedupeKey(candidate);
-            if (seenInFile.has(key)) {
-              skippedDupe++;
-              continue;
-            }
-            seenInFile.add(key);
-            const existing = existingKeys.get(key);
-            if (existing) {
-              if (existing.title !== candidate.title || existing.category !== candidate.category || !existing.itemNumber && candidate.itemNumber) {
-                existing.title = candidate.title;
-                existing.category = candidate.category || existing.category;
-                existing.itemNumber = existing.itemNumber || candidate.itemNumber;
-                updated++;
-              } else {
-                skippedDupe++;
-              }
-              continue;
-            }
-            added.push({
-              ...emptyDraft(),
-              id: uid(),
-              itemNumber: candidate.itemNumber,
-              sku: candidate.sku,
-              title: candidate.title,
-              category: candidate.category
-            });
-          }
-          const next = [...listings.map((l) => existingKeys.get(dedupeKey(l)) || l), ...added];
-          persist(next);
-          setImportResult({ added: added.length, updated, skippedDupe, skippedBlank });
-        } catch (e) {
-          setImportError("Something went wrong reading that file.");
-        }
-      },
-      error: () => setImportError("Something went wrong reading that file.")
-    });
-  }
-  function resetAll() {
-    persist([]);
-    setConfirmReset(false);
-  }
-  const filtered = useMemo(() => {
-    let arr = listings.filter(
-      (l) => l.title.toLowerCase().includes(query.toLowerCase()) || l.sku.toLowerCase().includes(query.toLowerCase())
-    );
-    if (sortBy === "stale") arr = [...arr].sort((a, b) => daysSince(b.lastUpdated) - daysSince(a.lastUpdated));
-    else if (sortBy === "fresh") arr = [...arr].sort((a, b) => daysSince(a.lastUpdated) - daysSince(b.lastUpdated));
-    else if (sortBy === "priority") {
-      const rank = { high: 0, medium: 1, low: 2 };
-      arr = [...arr].sort((a, b) => rank[a.priority] - rank[b.priority]);
-    } else if (sortBy === "az") arr = [...arr].sort((a, b) => a.title.localeCompare(b.title));
-    return arr;
-  }, [listings, sortBy, query]);
-  const stats = useMemo(() => {
-    const total = listings.length;
-    const stale = listings.filter((l) => daysSince(l.lastUpdated) > 30).length;
-    const updatedThisWeek = listings.filter((l) => daysSince(l.lastUpdated) <= 6).length;
-    const flagged = listings.filter((l) => Object.values(l.needsWork || {}).some(Boolean)).length;
-    return { total, stale, updatedThisWeek, flagged };
-  }, [listings]);
-  return /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "'Inter', sans-serif" }, className: "min-h-screen bg-[#EDE7D9] text-[#242019]" }, /* @__PURE__ */ React.createElement("header", { className: "border-b-2 border-[#242019] bg-[#EDE7D9] sticky top-0 z-20" }, /* @__PURE__ */ React.createElement("div", { className: "max-w-4xl mx-auto px-5 py-5 flex items-center justify-between gap-3 flex-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "w-11 h-11 rounded-full border-2 border-[#B3401F] flex items-center justify-center flex-shrink-0", style: { transform: "rotate(-8deg)" } }, /* @__PURE__ */ React.createElement(Stamp, { size: 20, strokeWidth: 2, className: "text-[#B3401F]" })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { style: { fontFamily: "'Oswald', sans-serif", letterSpacing: "0.02em" }, className: "text-2xl font-semibold uppercase leading-none" }, "The Manifest"), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-[#6B6152] mt-1 font-medium" }, "Listing freshness & SEO tracker"))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      onClick: () => {
-        setImportResult(null);
-        setImportError(null);
-        setShowImport(true);
-      },
-      className: "flex items-center gap-1.5 bg-white border border-[#242019] text-[#242019] px-3.5 py-2.5 rounded-sm text-sm font-semibold hover:bg-[#F4F0E4] transition-colors",
-      style: { fontFamily: "'Oswald', sans-serif", letterSpacing: "0.03em" }
-    },
-    /* @__PURE__ */ React.createElement(Upload, { size: 15, strokeWidth: 2.5 }),
-    " IMPORT"
-  ), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      onClick: openNew,
-      className: "flex items-center gap-1.5 bg-[#242019] text-[#EDE7D9] px-4 py-2.5 rounded-sm text-sm font-semibold hover:bg-[#3a3327] transition-colors",
-      style: { fontFamily: "'Oswald', sans-serif", letterSpacing: "0.03em" }
-    },
-    /* @__PURE__ */ React.createElement(Plus, { size: 16, strokeWidth: 2.5 }),
-    " ADD ITEM"
-  )))), /* @__PURE__ */ React.createElement("main", { className: "max-w-4xl mx-auto px-5 py-6 pb-24" }, loaded && listings.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6" }, /* @__PURE__ */ React.createElement(StatBlock, { label: "Tracked", value: stats.total }), /* @__PURE__ */ React.createElement(StatBlock, { label: "Stale (30d+)", value: stats.stale, accent: "#B3401F" }), /* @__PURE__ */ React.createElement(StatBlock, { label: "Updated this week", value: stats.updatedThisWeek, accent: "#4B7A5A" }), /* @__PURE__ */ React.createElement(StatBlock, { label: "Flagged", value: stats.flagged, accent: "#B8862E" })), saveError && /* @__PURE__ */ React.createElement("div", { className: "mb-4 text-sm bg-[#F4D9CE] border border-[#B3401F] text-[#7A2A13] px-3 py-2 rounded-sm" }, "Couldn't save \u2014 your browser's local storage may be full or disabled for this file."), loaded && listings.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-2 mb-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 bg-white border border-[#D8D0BC] rounded-sm px-3 py-2 flex-1 min-w-[160px]" }, /* @__PURE__ */ React.createElement(Search, { size: 15, className: "text-[#8B8578] flex-shrink-0" }), /* @__PURE__ */ React.createElement(
-    "input",
-    {
-      value: query,
-      onChange: (e) => setQuery(e.target.value),
-      placeholder: "Search title or SKU",
-      className: "bg-transparent outline-none text-sm w-full placeholder:text-[#B0A992]"
-    }
-  )), /* @__PURE__ */ React.createElement(
-    "select",
-    {
-      value: sortBy,
-      onChange: (e) => setSortBy(e.target.value),
-      className: "border border-[#D8D0BC] bg-white rounded-sm px-3 py-2 text-sm font-medium outline-none",
-      style: { fontFamily: "'Inter', sans-serif" }
-    },
-    /* @__PURE__ */ React.createElement("option", { value: "stale" }, "Staleest first"),
-    /* @__PURE__ */ React.createElement("option", { value: "fresh" }, "Freshest first"),
-    /* @__PURE__ */ React.createElement("option", { value: "priority" }, "Priority"),
-    /* @__PURE__ */ React.createElement("option", { value: "az" }, "A\u2013Z")
-  )), loaded && listings.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "text-center py-16 px-6 border-2 border-dashed border-[#D8D0BC] rounded-sm" }, /* @__PURE__ */ React.createElement("div", { className: "w-14 h-14 rounded-full border-2 border-[#B0A992] mx-auto mb-4 flex items-center justify-center", style: { transform: "rotate(-6deg)" } }, /* @__PURE__ */ React.createElement(Stamp, { size: 24, className: "text-[#B0A992]" })), /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: "'Oswald', sans-serif" }, className: "text-lg font-semibold uppercase mb-1" }, "Nothing on the manifest yet"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-[#6B6152] mb-5 max-w-sm mx-auto" }, "Add your first listing to start tracking when it was last touched and what it still needs."), /* @__PURE__ */ React.createElement("button", { onClick: openNew, className: "inline-flex items-center gap-1.5 bg-[#242019] text-[#EDE7D9] px-4 py-2.5 rounded-sm text-sm font-semibold", style: { fontFamily: "'Oswald', sans-serif", letterSpacing: "0.03em" } }, /* @__PURE__ */ React.createElement(Plus, { size: 16, strokeWidth: 2.5 }), " ADD YOUR FIRST ITEM")), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, filtered.map((l) => {
-    const days = daysSince(l.lastUpdated);
-    const st = staleness(days);
-    const expanded = expandedId === l.id;
-    const needsWorkCount = Object.values(l.needsWork || {}).filter(Boolean).length;
-    const seoDone = Object.values(l.seo || {}).filter(Boolean).length;
-    return /* @__PURE__ */ React.createElement("div", { key: l.id, className: "bg-white border border-[#D8D0BC] rounded-sm overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-stretch" }, /* @__PURE__ */ React.createElement("div", { className: "flex-shrink-0 w-20 flex items-center justify-center border-r border-dashed border-[#D8D0BC] py-3" }, /* @__PURE__ */ React.createElement("div", { className: "w-14 h-14 rounded-full border-2 flex flex-col items-center justify-center", style: { borderColor: st.ring, transform: "rotate(-5deg)" } }, /* @__PURE__ */ React.createElement("span", { style: { fontFamily: "'IBM Plex Mono', monospace", color: st.color }, className: "text-base font-semibold leading-none" }, days), /* @__PURE__ */ React.createElement("span", { style: { fontFamily: "'IBM Plex Mono', monospace", color: st.color }, className: "text-[8px] uppercase tracking-wide leading-none mt-1" }, "days"))), /* @__PURE__ */ React.createElement("div", { className: "flex-1 min-w-0 px-4 py-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between gap-2" }, /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("p", { className: "font-semibold text-sm truncate" }, l.title), /* @__PURE__ */ React.createElement("p", { style: { fontFamily: "'IBM Plex Mono', monospace" }, className: "text-xs text-[#8B8578] mt-0.5" }, l.sku || "no sku", " ", l.category ? `\xB7 ${l.category}` : "")), /* @__PURE__ */ React.createElement(PriorityTag, { priority: l.priority })), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 mt-2 flex-wrap" }, needsWorkCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "text-xs font-medium text-[#B3401F] bg-[#F4D9CE] px-2 py-0.5 rounded-sm" }, needsWorkCount, " field", needsWorkCount > 1 ? "s" : "", " flagged"), /* @__PURE__ */ React.createElement("span", { className: "text-xs text-[#8B8578]" }, "SEO checklist ", seoDone, "/", SEO_CHECKLIST_FIELDS.length)), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 mt-3 flex-wrap" }, /* @__PURE__ */ React.createElement("button", { onClick: () => markUpdatedToday(l.id), className: "text-xs font-semibold uppercase tracking-wide bg-[#242019] text-[#EDE7D9] px-3 py-1.5 rounded-sm hover:bg-[#3a3327]", style: { fontFamily: "'Oswald', sans-serif" } }, "Mark updated today"), /* @__PURE__ */ React.createElement("button", { onClick: () => setExpandedId(expanded ? null : l.id), className: "text-xs font-medium text-[#6B6152] flex items-center gap-0.5 px-2 py-1.5" }, "Details ", expanded ? /* @__PURE__ */ React.createElement(ChevronUp, { size: 14 }) : /* @__PURE__ */ React.createElement(ChevronDown, { size: 14 })), /* @__PURE__ */ React.createElement("button", { onClick: () => editListing(l), className: "text-xs font-medium text-[#6B6152] px-2 py-1.5" }, "Edit"), /* @__PURE__ */ React.createElement("button", { onClick: () => deleteListing(l.id), className: "text-xs font-medium text-[#B3401F] px-2 py-1.5 ml-auto flex items-center gap-1" }, /* @__PURE__ */ React.createElement(Trash2, { size: 13 }))))), expanded && /* @__PURE__ */ React.createElement("div", { className: "border-t border-[#D8D0BC] bg-[#FAF8F2] px-4 py-4 grid sm:grid-cols-2 gap-5" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { style: { fontFamily: "'Oswald', sans-serif" }, className: "text-xs font-semibold uppercase tracking-wide text-[#6B6152] mb-2" }, "Needs work"), /* @__PURE__ */ React.createElement("div", { className: "space-y-1.5" }, NEEDS_WORK_FIELDS.map((f) => {
-      var _a;
-      return /* @__PURE__ */ React.createElement("label", { key: f.key, className: "flex items-center gap-2 text-sm cursor-pointer" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: !!((_a = l.needsWork) == null ? void 0 : _a[f.key]), onChange: () => toggleNeedsWork(l.id, f.key), className: "accent-[#B3401F] w-4 h-4" }), f.label);
-    })), l.notes && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-[#6B6152] mt-3 italic border-l-2 border-[#D8D0BC] pl-2" }, l.notes)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { style: { fontFamily: "'Oswald', sans-serif" }, className: "text-xs font-semibold uppercase tracking-wide text-[#6B6152] mb-2" }, "SEO checklist"), /* @__PURE__ */ React.createElement("div", { className: "space-y-1.5" }, SEO_CHECKLIST_FIELDS.map((f) => {
-      var _a;
-      return /* @__PURE__ */ React.createElement("label", { key: f.key, className: "flex items-center gap-2 text-sm cursor-pointer" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: !!((_a = l.seo) == null ? void 0 : _a[f.key]), onChange: () => toggleSeo(l.id, f.key), className: "accent-[#4B7A5A] w-4 h-4" }), f.label);
-    })))));
-  })), loaded && listings.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mt-8 text-center" }, !confirmReset ? /* @__PURE__ */ React.createElement("button", { onClick: () => setConfirmReset(true), className: "text-xs text-[#B0A992] hover:text-[#B3401F] flex items-center gap-1 mx-auto" }, /* @__PURE__ */ React.createElement(RotateCcw, { size: 12 }), " Reset all data") : /* @__PURE__ */ React.createElement("div", { className: "text-xs text-[#6B6152] flex items-center justify-center gap-2 flex-wrap" }, "Delete all ", listings.length, " listings? This can't be undone.", /* @__PURE__ */ React.createElement("button", { onClick: resetAll, className: "font-semibold text-[#B3401F]" }, "Yes, delete"), /* @__PURE__ */ React.createElement("button", { onClick: () => setConfirmReset(false), className: "font-semibold" }, "Cancel")))), showImport && /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-30 p-0 sm:p-5" }, /* @__PURE__ */ React.createElement("div", { className: "bg-[#EDE7D9] w-full sm:max-w-md sm:rounded-sm max-h-[90vh] overflow-y-auto border-t-2 sm:border-2 border-[#242019]" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-5 py-4 border-b border-[#D8D0BC]" }, /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: "'Oswald', sans-serif" }, className: "text-lg font-semibold uppercase" }, "Import from eBay"), /* @__PURE__ */ React.createElement("button", { onClick: () => setShowImport(false) }, /* @__PURE__ */ React.createElement(X, { size: 20 }))), /* @__PURE__ */ React.createElement("div", { className: "px-5 py-4 space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm text-[#4A4335] space-y-2" }, /* @__PURE__ */ React.createElement("p", null, "In Seller Hub, go to ", /* @__PURE__ */ React.createElement("strong", null, "Active listings"), ", select your items, then ", /* @__PURE__ */ React.createElement("strong", null, "Download reports \u2192 Active listings report"), " and export as CSV."), /* @__PURE__ */ React.createElement("p", { className: "text-[#6B6152]" }, "Items already on your manifest are matched by eBay item number (or SKU, or title) and won't be duplicated \u2014 only new items get added.")), /* @__PURE__ */ React.createElement(
-    "input",
-    {
-      ref: fileInputRef,
-      type: "file",
-      accept: ".csv",
-      className: "hidden",
-      onChange: (e) => {
-        var _a;
-        const file = (_a = e.target.files) == null ? void 0 : _a[0];
-        if (file) handleImportFile(file);
-        e.target.value = "";
+  if (out) { out.innerHTML = ''; out.appendChild(el('p', { class: 'note', text: 'Reading your file...' })); }
+
+  Papa.parse(file, {
+    header: true, skipEmptyLines: true,
+    complete: function (res) {
+      var headers = (res.meta && res.meta.fields) || [];
+      var cTitle = findCol(headers, ['title']);
+      if (!cTitle) {
+        out.innerHTML = '';
+        out.appendChild(el('p', { class: 'note', text: 'No Title column found. Make sure this is the eBay active listings report.' }));
+        return;
       }
+      var cNum = findCol(headers, ['item number', 'itemid', 'item id']);
+      var cSku = findCol(headers, ['custom label (sku)', 'custom label', 'sku']);
+      var cCat = findCol(headers, ['ebay category 1 name', 'category name', 'category']);
+      var cStart = findCol(headers, ['start date', 'start time']);
+      var cQty = findCol(headers, ['available quantity', 'quantity']);
+      var cPrice = findCol(headers, ['current price', 'start price', 'price']);
+      var cSold = findCol(headers, ['sold quantity']);
+      var cWatch = findCol(headers, ['watchers']);
+      var cVar = findCol(headers, ['variation details']);
+
+      var rows = res.data || [];
+      var candidates = [], i, row;
+
+      /* Variation listings repeat the same item number: one parent row plus one
+         row per size. Take parent rows first, then any orphan variation rows. */
+      for (i = 0; i < rows.length; i++) {
+        row = rows[i];
+        if (cVar && cell(row, cVar)) continue;
+        if (cell(row, cTitle)) candidates.push(row);
+      }
+      var parentKeys = {};
+      for (i = 0; i < candidates.length; i++) {
+        parentKeys[keyFor({ itemNumber: cell(candidates[i], cNum), sku: cell(candidates[i], cSku), title: cell(candidates[i], cTitle) })] = true;
+      }
+      for (i = 0; i < rows.length; i++) {
+        row = rows[i];
+        if (!cVar || !cell(row, cVar)) continue;
+        if (!cell(row, cTitle)) continue;
+        var k = keyFor({ itemNumber: cell(row, cNum), sku: cell(row, cSku), title: cell(row, cTitle) });
+        if (!parentKeys[k]) { parentKeys[k] = true; candidates.push(row); }
+      }
+
+      var existing = {};
+      for (i = 0; i < state.listings.length; i++) existing[keyFor(state.listings[i])] = state.listings[i];
+
+      var stamp = new Date().toISOString();
+      var seen = {}, added = 0, refreshed = 0, dupes = 0, noDate = 0;
+
+      for (i = 0; i < candidates.length; i++) {
+        row = candidates[i];
+        var data = {
+          itemNumber: cell(row, cNum),
+          title: cell(row, cTitle),
+          sku: cell(row, cSku),
+          category: cell(row, cCat),
+          quantity: cell(row, cQty),
+          price: cell(row, cPrice),
+          sold: cell(row, cSold),
+          watchers: cell(row, cWatch)
+        };
+        var startISO = toISODate(parseEbayDate(cell(row, cStart)));
+        if (!startISO) noDate++;
+
+        var key = keyFor(data);
+        if (seen[key]) { dupes++; continue; }
+        seen[key] = true;
+
+        var hit = existing[key];
+        if (hit) {
+          hit.title = data.title || hit.title;
+          hit.category = data.category || hit.category;
+          hit.sku = data.sku || hit.sku;
+          hit.itemNumber = hit.itemNumber || data.itemNumber;
+          hit.quantity = data.quantity;
+          hit.price = data.price;
+          hit.sold = data.sold;
+          hit.watchers = data.watchers;
+          if (startISO) hit.startDate = startISO;
+          hit.lastImportedAt = stamp;
+          refreshed++;
+        } else {
+          var fresh = newListing();
+          fresh.itemNumber = data.itemNumber;
+          fresh.title = data.title;
+          fresh.sku = data.sku;
+          fresh.category = data.category;
+          fresh.quantity = data.quantity;
+          fresh.price = data.price;
+          fresh.sold = data.sold;
+          fresh.watchers = data.watchers;
+          fresh.startDate = startISO;
+          fresh.lastImportedAt = stamp;
+          state.listings.push(fresh);
+          added++;
+        }
+      }
+
+      /* Sold-out scrubbing: previously imported items that are gone from this file. */
+      var missing = [];
+      for (i = 0; i < state.listings.length; i++) {
+        var l = state.listings[i];
+        if (l.lastImportedAt === stamp) continue;
+        if (!l.lastImportedAt) continue;   /* added by hand, never touch */
+        missing.push(l.id);
+      }
+
+      save();
+      state.visible = PAGE_SIZE;
+      renderAll();
+      showImportResult({ added: added, refreshed: refreshed, dupes: dupes, noDate: noDate, missing: missing });
+    },
+    error: function () {
+      out.innerHTML = '';
+      out.appendChild(el('p', { class: 'note', text: 'Something went wrong reading that file.' }));
     }
-  ), /* @__PURE__ */ React.createElement("button", { onClick: () => {
-    var _a;
-    return (_a = fileInputRef.current) == null ? void 0 : _a.click();
-  }, className: "w-full border-2 border-dashed border-[#B0A992] rounded-sm py-8 flex flex-col items-center gap-2 text-[#6B6152] hover:border-[#242019] hover:text-[#242019] transition-colors" }, /* @__PURE__ */ React.createElement(Upload, { size: 22 }), " ", /* @__PURE__ */ React.createElement("span", { className: "text-sm font-medium" }, "Choose CSV file")), importError && /* @__PURE__ */ React.createElement("div", { className: "flex items-start gap-2 text-sm bg-[#F4D9CE] border border-[#B3401F] text-[#7A2A13] px-3 py-2 rounded-sm" }, /* @__PURE__ */ React.createElement(AlertCircle, { size: 16, className: "flex-shrink-0 mt-0.5" }), " ", importError), importResult && /* @__PURE__ */ React.createElement("div", { className: "text-sm bg-[#E4EDE0] border border-[#4B7A5A] text-[#2F4A34] px-3 py-3 rounded-sm space-y-1" }, /* @__PURE__ */ React.createElement("p", { className: "font-semibold" }, "Import complete"), /* @__PURE__ */ React.createElement("p", null, importResult.added, " new item", importResult.added === 1 ? "" : "s", " added"), importResult.updated > 0 && /* @__PURE__ */ React.createElement("p", null, importResult.updated, " existing item(s) refreshed"), importResult.skippedDupe > 0 && /* @__PURE__ */ React.createElement("p", { className: "text-[#4B6B4F]" }, importResult.skippedDupe, " already tracked, skipped"), importResult.skippedBlank > 0 && /* @__PURE__ */ React.createElement("p", { className: "text-[#4B6B4F]" }, importResult.skippedBlank, " row(s) had no title, skipped"))), /* @__PURE__ */ React.createElement("div", { className: "px-5 py-4 border-t border-[#D8D0BC]" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setShowImport(false), className: "w-full py-2.5 rounded-sm text-sm font-semibold border border-[#D8D0BC]" }, "Done")))), showForm && /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-30 p-0 sm:p-5" }, /* @__PURE__ */ React.createElement("div", { className: "bg-[#EDE7D9] w-full sm:max-w-md sm:rounded-sm max-h-[90vh] overflow-y-auto border-t-2 sm:border-2 border-[#242019]" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-5 py-4 border-b border-[#D8D0BC]" }, /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: "'Oswald', sans-serif" }, className: "text-lg font-semibold uppercase" }, draft.id ? "Edit item" : "New item"), /* @__PURE__ */ React.createElement("button", { onClick: () => setShowForm(false) }, /* @__PURE__ */ React.createElement(X, { size: 20 }))), /* @__PURE__ */ React.createElement("div", { className: "px-5 py-4 space-y-3" }, /* @__PURE__ */ React.createElement(Field, { label: "Title" }, /* @__PURE__ */ React.createElement("input", { value: draft.title, onChange: (e) => setDraft({ ...draft, title: e.target.value }), className: "input", placeholder: "Vintage 1990s denim jacket, size M", autoFocus: true })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement(Field, { label: "SKU / item #" }, /* @__PURE__ */ React.createElement("input", { value: draft.sku, onChange: (e) => setDraft({ ...draft, sku: e.target.value }), className: "input", placeholder: "JK-1042" })), /* @__PURE__ */ React.createElement(Field, { label: "Category" }, /* @__PURE__ */ React.createElement("input", { value: draft.category, onChange: (e) => setDraft({ ...draft, category: e.target.value }), className: "input", placeholder: "Men's clothing" }))), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement(Field, { label: "Priority" }, /* @__PURE__ */ React.createElement("select", { value: draft.priority, onChange: (e) => setDraft({ ...draft, priority: e.target.value }), className: "input" }, PRIORITIES.map((p) => /* @__PURE__ */ React.createElement("option", { key: p, value: p }, p[0].toUpperCase() + p.slice(1))))), /* @__PURE__ */ React.createElement(Field, { label: "Last updated" }, /* @__PURE__ */ React.createElement("input", { type: "date", value: draft.lastUpdated, onChange: (e) => setDraft({ ...draft, lastUpdated: e.target.value }), className: "input" }))), /* @__PURE__ */ React.createElement(Field, { label: "Notes (optional)" }, /* @__PURE__ */ React.createElement("textarea", { value: draft.notes, onChange: (e) => setDraft({ ...draft, notes: e.target.value }), className: "input", rows: 2, placeholder: "Photos look washed out, needs retake" }))), /* @__PURE__ */ React.createElement("div", { className: "px-5 py-4 border-t border-[#D8D0BC] flex gap-2" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setShowForm(false), className: "flex-1 py-2.5 rounded-sm text-sm font-semibold border border-[#D8D0BC]" }, "Cancel"), /* @__PURE__ */ React.createElement("button", { onClick: saveDraft, disabled: !draft.title.trim(), className: "flex-1 py-2.5 rounded-sm text-sm font-semibold bg-[#242019] text-[#EDE7D9] disabled:opacity-40 flex items-center justify-center gap-1.5", style: { fontFamily: "'Oswald', sans-serif", letterSpacing: "0.03em" } }, /* @__PURE__ */ React.createElement(Check, { size: 15, strokeWidth: 2.5 }), " ", draft.id ? "SAVE CHANGES" : "ADD TO MANIFEST")))));
+  });
 }
-function Field({ label, children }) {
-  return /* @__PURE__ */ React.createElement("label", { className: "block" }, /* @__PURE__ */ React.createElement("span", { className: "block text-xs font-medium text-[#6B6152] mb-1" }, label), children);
+
+function showImportResult(r) {
+  var out = $('importResult');
+  if (!out) return;
+  out.innerHTML = '';
+  var box = el('div', { style: 'background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:6px' });
+  box.appendChild(el('p', { class: 'label', text: 'Import complete' }));
+  box.appendChild(el('p', { class: 'note', text: r.added + ' new listing' + (r.added === 1 ? '' : 's') + ' added' }));
+  if (r.refreshed) box.appendChild(el('p', { class: 'note', text: r.refreshed + ' already tracked, details refreshed' }));
+  if (r.dupes) box.appendChild(el('p', { class: 'note', text: r.dupes + ' duplicate row' + (r.dupes === 1 ? '' : 's') + ' skipped, these are size variations' }));
+  if (r.noDate) box.appendChild(el('p', { class: 'note', text: r.noDate + ' row' + (r.noDate === 1 ? '' : 's') + ' had no readable start date' }));
+  out.appendChild(box);
+
+  if (r.missing.length) {
+    var warn = el('div', { style: 'margin-top:12px;display:grid;gap:8px' }, [
+      el('p', { class: 'note', text: r.missing.length + ' listing' + (r.missing.length === 1 ? '' : 's') + ' on your shelf are not in this file, which usually means they sold.' }),
+      el('button', {
+        class: 'btn btn-danger btn-full', type: 'button',
+        text: 'Remove ' + r.missing.length + ' sold listing' + (r.missing.length === 1 ? '' : 's'),
+        onclick: function () {
+          var drop = {}, i;
+          for (i = 0; i < r.missing.length; i++) drop[r.missing[i]] = true;
+          var keep = [];
+          for (i = 0; i < state.listings.length; i++) if (!drop[state.listings[i].id]) keep.push(state.listings[i]);
+          state.listings = keep;
+          save(); renderAll(); closeModal();
+          toast('Sold listings removed.');
+        }
+      }),
+      el('p', { class: 'note', text: 'If your export only covered part of your shelf, close this instead and nothing is removed.' })
+    ]);
+    out.appendChild(warn);
+  }
 }
-function StatBlock({ label, value, accent }) {
-  return /* @__PURE__ */ React.createElement("div", { className: "bg-white border border-[#D8D0BC] rounded-sm px-3 py-2.5" }, /* @__PURE__ */ React.createElement("p", { style: { fontFamily: "'IBM Plex Mono', monospace", color: accent || "#242019" }, className: "text-xl font-semibold leading-none" }, value), /* @__PURE__ */ React.createElement("p", { className: "text-[10px] uppercase tracking-wide text-[#8B8578] mt-1 font-medium" }, label));
+
+/* ---------------- backup, restore, erase ---------------- */
+function backup() {
+  var blob = new Blob([JSON.stringify(state.listings, null, 2)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = el('a', { href: url, download: 'shelf-sync-backup-' + todayISO() + '.json' });
+  document.body.appendChild(a);
+  a.click();
+  a.parentNode.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+  toast('Backup file saved.');
 }
-function PriorityTag({ priority }) {
-  const map = {
-    high: { bg: "#F4D9CE", text: "#B3401F" },
-    medium: { bg: "#F0E4C8", text: "#8A6A1E" },
-    low: { bg: "#E4E8DE", text: "#5A6E52" }
+
+function restore(file) {
+  var reader = new FileReader();
+  reader.onload = function () {
+    var parsed;
+    try { parsed = JSON.parse(String(reader.result)); }
+    catch (e) { toast('That file is not a Shelf Sync backup.'); return; }
+    if (!Array.isArray(parsed)) { toast('That file is not a Shelf Sync backup.'); return; }
+    openModal('Restore backup', [
+      el('p', { class: 'note', text: 'This replaces everything on this device with the ' + parsed.length + ' listings in that file.' })
+    ], [
+      el('button', { class: 'btn btn-quiet', type: 'button', text: 'Cancel', onclick: closeModal }),
+      el('button', {
+        class: 'btn btn-solid', type: 'button', text: 'Restore',
+        onclick: function () {
+          state.listings = parsed.map(normalize);
+          state.visible = PAGE_SIZE;
+          save(); renderAll(); closeModal();
+          toast('Backup restored.');
+        }
+      })
+    ]);
   };
-  const c = map[priority] || map.medium;
-  return /* @__PURE__ */ React.createElement("span", { style: { backgroundColor: c.bg, color: c.text, fontFamily: "'IBM Plex Mono', monospace" }, className: "text-[10px] uppercase tracking-wide font-semibold px-2 py-1 rounded-sm flex-shrink-0" }, priority);
+  reader.readAsText(file);
 }
-const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(/* @__PURE__ */ React.createElement(ListingTracker, null));
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./service-worker.js").catch(() => {
-    });
+
+function confirmErase() {
+  openModal('Erase everything', [
+    el('p', { class: 'note', text: 'This deletes all ' + state.listings.length + ' listings on this device, including your checklists and notes. It cannot be undone. Back up first if you are not sure.' })
+  ], [
+    el('button', { class: 'btn btn-quiet', type: 'button', text: 'Cancel', onclick: closeModal }),
+    el('button', {
+      class: 'btn btn-danger', type: 'button', text: 'Erase all',
+      onclick: function () {
+        state.listings = [];
+        save(); renderAll(); closeModal();
+        toast('Everything erased.');
+      }
+    })
+  ]);
+}
+
+/* ---------------- wiring ---------------- */
+function dismissSplash() {
+  var s = $('splash');
+  if (!s) return;
+  s.classList.add('gone');
+  setTimeout(function () { s.hidden = true; }, 500);
+}
+
+$('enterBtn').addEventListener('click', dismissSplash);
+$('importBtn').addEventListener('click', openImport);
+$('emptyImport').addEventListener('click', openImport);
+$('addBtn').addEventListener('click', function () { openDetail(null); });
+$('loadMore').addEventListener('click', function () { state.visible += PAGE_SIZE; renderList(); });
+$('backupBtn').addEventListener('click', backup);
+$('restoreBtn').addEventListener('click', function () { $('restoreInput').click(); });
+$('resetBtn').addEventListener('click', confirmErase);
+
+$('fSearch').addEventListener('input', function (e) { state.q = e.target.value; state.visible = PAGE_SIZE; renderList(); });
+$('fLoc').addEventListener('change', function (e) { state.loc = e.target.value; state.visible = PAGE_SIZE; renderList(); });
+$('fCat').addEventListener('change', function (e) { state.cat = e.target.value; state.visible = PAGE_SIZE; renderList(); });
+$('fSort').addEventListener('change', function (e) { state.sort = e.target.value; state.visible = PAGE_SIZE; renderList(); });
+
+$('csvInput').addEventListener('change', function (e) {
+  var f = e.target.files && e.target.files[0];
+  if (f) runImport(f);
+  e.target.value = '';
+});
+$('restoreInput').addEventListener('change', function (e) {
+  var f = e.target.files && e.target.files[0];
+  if (f) restore(f);
+  e.target.value = '';
+});
+
+/* ---------------- start ---------------- */
+state.listings = load();
+
+/* Add ?demo=1 to the address to preview the layout with sample rows.
+   Nothing is saved to the device in demo mode. */
+if (location.search.indexOf('demo=1') !== -1 || window.SHELF_SYNC_DEMO) {
+  var samples = [
+    ['188551378124', "Mata Women's Revolution Brown Half Zipper Knee High Boots", 'poster box #1', 'Boots', 88, 6],
+    ['295512340011', 'Stephen King Pet Sematary First Edition Hardcover Book', 'bookshelf-book', 'Books', 41, 2],
+    ['295512340012', 'Marvel Secret Wars Complete Comic Run Lot of 12 Issues', 'below books', 'Comics & Graphic Novels', 12, 9],
+    ['295512340013', 'Vintage Leather Work Gloves Size Large Insulated Pair', 'abby', 'Gloves & Mitts', 6, 0],
+    ['', 'Blu-ray Movie Bundle, 8 Discs, Action and Sci-Fi', '', 'DVDs & Blu-ray Discs', 137, 14]
+  ];
+  for (var d = 0; d < samples.length; d++) {
+    var sample = newListing();
+    sample.itemNumber = samples[d][0];
+    sample.title = samples[d][1];
+    sample.sku = samples[d][2];
+    sample.category = samples[d][3];
+    sample.startDate = toISODate(new Date(Date.now() - samples[d][4] * 86400000));
+    sample.watchers = String(samples[d][5]);
+    sample.lastImportedAt = new Date().toISOString();
+    if (d === 3) { sample.work.photos = true; sample.work.price = true; }
+    if (d === 1) { sample.seo.fullTitle = true; sample.seo.sixPhotos = true; }
+    state.listings.push(sample);
+  }
+  save = function () { return true; };
+}
+
+renderAll();
+
+/* Service worker only works over https or localhost, never from a file:// path. */
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('./service-worker.js').catch(function () { });
   });
 }
