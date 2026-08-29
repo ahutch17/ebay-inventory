@@ -8,40 +8,89 @@
     <script src="https://tailwindcss.com"></script>
     <style>
         @import url('https://googleapis.com');
+        
         body { 
             margin: 0; 
             font-family: 'Inter', sans-serif;
+            background-color: #E6DCCE;
+        }
+        
+        .font-serif-premium {
+            font-family: 'Playfair Display', serif;
+        }
+        
+        /* Arched text effect helper mapping */
+        .arched-text span {
+            display: inline-block;
+            transform-origin: bottom center;
         }
     </style>
 </head>
-<body class="bg-[#EBE0D5]">
+<body class="bg-[#E6DCCE] text-[#4A554D]">
 
-    <div class="min-h-screen flex flex-col items-center justify-between p-12 text-center">
+    <!-- WELCOME VIEW PANEL (MATCHES MOCKUP DESIGN AESTHETIC) -->
+    <div id="splash-screen" class="min-h-screen flex flex-col items-center justify-between p-8 text-center relative overflow-hidden select-none bg-[#E6DCCE]">
         
-        <!-- The Main Welcome Core Layout Blocks -->
-        <div class="flex-1 flex flex-col items-center justify-center">
-            <!-- 1. Pure Code Botanical Logo Frame (Zero Image Files Required!) -->
-            <div class="w-32 h-32 rounded-full border-4 border-[#C5CBBF] bg-white flex items-center justify-center p-6 mb-6 shadow-sm overflow-hidden">
-                <svg viewBox="0 0 24 24" class="w-full h-full text-[#54655A] fill-none stroke-current" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <!-- Smooth circular badge accent -->
-                    <path d="M12 2A10 10 0 1 0 22 12A10 10 0 0 0 12 2Z" class="text-[#C5CBBF]" style="opacity: 0.25; fill: #C5CBBF;" />
-                    <!-- Minimalist line art botanical branches and leaves -->
-                    <path d="M12 22V11m0 0c1.5-2 3.5-3.5 6-3.5M12 11c-1.5-2-3.5-3.5-6-3.5M12 15c2-1.5 4-2 6-1.5M12 15c-2-1.5-4-2-6-1.5M12 18c1.5-1 3-1 4.5-.5M12 18c-1.5-1-3-1-4.5-.5" />
-                    <circle cx="18" cy="7.5" r="1" class="fill-current text-[#C0A99E]" style="stroke: none;" />
-                    <circle cx="6" cy="7.5" r="1" class="fill-current text-[#C0A99E]" style="stroke: none;" />
-                </svg>
+        <!-- The Main Upper/Center Branding Stack -->
+        <div class="flex-1 flex flex-col items-center justify-center z-10 mt-12">
+            
+            <!-- 1. The Arched Logo Olive Branch Stamp Component -->
+            <div class="w-52 h-52 relative flex items-center justify-center mb-6">
+                <!-- Outer Brand Text Arch Track -->
+                <div class="absolute inset-0 w-full h-full text-[10px] font-bold tracking-widest text-[#8C7A6F] uppercase animate-none select-none">
+                    <svg viewBox="0 0 100 100" class="w-full h-full">
+                        <path id="textPath" d="M 12,50 A 38,38 0 1,1 88,50" fill="none" />
+                        <text class="fill-current" font-size="7.5" letter-spacing="2.5">
+                            <textPath href="#textPath" startOffset="50%" text-anchor="middle">SHELF SYNC</textPath>
+                        </text>
+                    </svg>
+                </div>
+                
+                <!-- Inner Multi-Ring Olive Circle Stamp Layer -->
+                <div class="w-36 h-36 rounded-full border-2 border-[#C0A99E] p-1 flex items-center justify-center relative">
+                    <div class="w-full h-full rounded-full border border-dashed border-[#C5CBBF] flex items-center justify-center p-4 bg-[#F2ECE4]/40">
+                        <!-- Elegant Vector Olive Branch Illustration Art -->
+                        <svg viewBox="0 0 24 24" class="w-full h-full text-[#7C8B80] fill-none stroke-current" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22C12 22 12 13 17 9M12 17C10 15 7 14 5 15M12 13C9 11 8 8 9 5M15 11C18 10 19 7 18 4" class="text-[#7C8B80]" />
+                            <!-- Detailed Leaf Loop Nodes -->
+                            <path d="M17 9c1.5-1 2.5-3 2-4.5s-2.5-1.5-4-.5c-1.5 1-1.5 3-.5 4.5s1 .1 2.5-.5Z" fill="#7C8B80" fill-opacity="0.15" />
+                            <path d="M5 15c-1.5-.5-3-2-3-3.5s2-1.5 3.5-1c1.5.5 1.5 2.5.5 4s-1.5 1-1 1Z" fill="#7C8B80" fill-opacity="0.15" />
+                            <path d="M9 5c-.5-1.5-2-2.5-3.5-2s-1.5 2.5-1 4c.5 1.5 2.5 1.5 4 .5s1-2.5.5-4.5Z" fill="#7C8B80" fill-opacity="0.15" />
+                            <path d="M18 4c.5-1.5 2-2.5 3.5-2s1.5 2.5 1 4c-.5 1.5-2.5 1.5-4 .5s-1-2.5-.5-4.5Z" fill="#7C8B80" fill-opacity="0.15" />
+                        </svg>
+                    </div>
+                </div>
             </div>
             
-            <!-- 2. The Headings Layout UI -->
-            <h1 class="text-4xl font-bold tracking-widest text-[#54655A] mb-2 font-serif">SHELF SYNC</h1>
-            <p class="text-xs font-semibold text-[#C0A99E] uppercase tracking-wider">Listing Freshness &amp; SEO Tracker</p>
+            <!-- 2. Typography Heading Structure -->
+            <h1 class="text-3xl font-bold tracking-widest text-[#4A554D] uppercase font-serif-premium mb-1">SHELF SYNC</h1>
+            <p class="text-xs font-medium text-[#7C8B80] tracking-wider italic">Listing freshness &amp; SEO tracker</p>
         </div>
         
-        <!-- 3. The Bottom Welcome Action Buttons Frame -->
-        <div class="w-full max-w-sm flex flex-col items-center mb-8">
-            <button class="w-full py-3 bg-[#54655A] text-white font-semibold tracking-widest uppercase text-sm rounded hover:bg-[#C0A99E] transition-colors duration-300 shadow-sm">
+        <!-- The Bottom Welcome Interface Footer Elements -->
+        <div class="w-full max-w-sm flex flex-col items-center justify-end z-10 mb-16">
+            <!-- 3. Clean Text Link Entry Action Button -->
+            <button class="text-xs font-semibold tracking-widest uppercase text-[#4A554D] underline decoration-1 underline-offset-4 hover:text-[#8C7A6F] transition-colors duration-300">
                 Tap to Enter
             </button>
+        </div>
+
+        <!-- 4. Pure Code Botanical Foliage Bottom Background Frame Overlay -->
+        <div class="absolute bottom-0 inset-x-0 w-full h-36 z-0 pointer-events-none flex items-end justify-center opacity-85">
+            <svg viewBox="0 0 360 120" class="w-full h-auto text-[#7C8B80] fill-none stroke-current" stroke-width="1" stroke-linecap="round">
+                <!-- Left Wildflower cluster tracks -->
+                <path d="M-20 140 Q 30 60 70 130 M30 90 Q 50 40 10 130 M0 110 Q 15 50 45 130" />
+                <path d="M25 60c-2-3-5-3-7-1s-1 5 1 7c2 2 5 2 7-1s1-3-1-5Z" fill="#8C7A6F" fill-opacity="0.2" />
+                <path d="M42 70c-2-3-5-3-7-1s-1 5 1 7c2 2 5 2 7-1s1-3-1-5Z" fill="#8C7A6F" fill-opacity="0.2" />
+                
+                <!-- Right Botanical branch track overlays -->
+                <path d="M380 140 Q 320 40 270 135 M310 80 Q 280 30 330 130 M340 100 Q 295 50 310 130" />
+                <path d="M285 65c2-3 5-3 7-1s1 5-1 7c-2 2-5 2-7-1s-1-3 1-5Z" fill="#8C7A6F" fill-opacity="0.2" />
+                <path d="M302 50c2-3 5-3 7-1s1 5-1 7c-2 2-5 2-7-1s-1-3 1-5Z" fill="#8C7A6F" fill-opacity="0.2" />
+                
+                <!-- Central ground base accent foliage threads -->
+                <path d="M120 130 Q 150 95 165 130 M220 130 Q 190 85 175 130 M150 130 Q 180 70 200 130" />
+            </svg>
         </div>
 
     </div>
