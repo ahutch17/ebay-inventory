@@ -167,8 +167,12 @@ function load() {
   } catch (e) { return []; }
 }
 function save() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.listings)); return true; }
-  catch (e) { toast('Could not save - this device storage may be full.'); return false; }
+  var ok = true;
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.listings)); }
+  catch (e) { toast('Could not save - this device storage may be full.'); ok = false; }
+  /* Mirror your own work - resets, checkmarks, notes - to the cloud. */
+  try { if (window.Cloud) window.Cloud.noteLocalChange(state.listings); } catch (e2) { }
+  return ok;
 }
 
 /* ---------------- state ---------------- */
@@ -709,6 +713,8 @@ function runImport(file) {
       }
 
       save();
+      /* Replace the shared catalog in the cloud so the other phone matches. */
+      try { if (window.Cloud) window.Cloud.pushCatalog(state.listings); } catch (e) { }
       state.visible = PAGE_SIZE;
       renderAll();
       showImportResult({ added: added, refreshed: refreshed, dupes: dupes, noDate: noDate, missing: missing });
@@ -888,9 +894,26 @@ try {
   toast('Start-up problem: ' + ((err && err.message) ? err.message : 'index.html may not be updated yet'));
 }
 
+/* ---------------- cloud sync ----------------
+   firebase.js loads first and defines window.Cloud. If it is missing, the app
+   carries on exactly as before, saving to this device only. */
+if (window.Cloud) {
+  window.Cloud.start({
+    local: function () { return state.listings; },
+    apply: function (list) {
+      state.listings = list;
+      /* Written straight to storage, not through save(), so an incoming
+         change is never bounced back up to the cloud as a new change. */
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.listings)); } catch (e) { }
+      state.visible = PAGE_SIZE;
+      renderAll();
+    }
+  });
+}
+
 /* Service worker only works over https or localhost, never from a file:// path. */
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('./service-worker.js').catch(function () { });
   });
-       }
+     }
