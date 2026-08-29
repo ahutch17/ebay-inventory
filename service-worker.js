@@ -13,7 +13,7 @@
    ONE RULE: bump CACHE_VERSION whenever you change app.js or index.html.
    ============================================================ */
 
-const CACHE_VERSION = 'shelf-sync-v2';
+const CACHE_VERSION = 'shelf-sync-v3';
 const CORE_ASSETS = [
   './',
   './index.html',
