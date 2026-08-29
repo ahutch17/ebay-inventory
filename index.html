@@ -88,10 +88,13 @@ button{font:inherit;cursor:pointer}
 <style>
 /* ---------- SCREEN B: header ---------- */
 header{border-bottom:1px solid var(--line);background:var(--cream);position:sticky;top:0;z-index:20}
-.head-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 0}
+/* Centred header. NOTE: this rule must keep its own side padding, because it
+   lands after .wrap in the stylesheet and would otherwise cancel it out,
+   which is what pushed the wordmark against the left edge. */
+.head-row{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:16px}
 .wordmark{font-family:var(--serif);font-size:21px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink);margin:0;line-height:1.15}
 .tagline{font-size:14px;margin:2px 0 0}
-.head-actions{display:flex;gap:8px}
+.head-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
 
 /* ---------- stats ---------- */
 #stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:20px 0 0}
@@ -104,7 +107,10 @@ header{border-bottom:1px solid var(--line);background:var(--cream);position:stic
 .in{width:100%;min-height:44px;padding:10px 12px;background:var(--surface);border:1px solid var(--line);border-radius:8px;font:inherit;color:var(--body)}
 .in:focus{border-color:var(--ink);outline:none}
 .filter-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-#count{font-size:14px;margin:16px 0 8px}
+/* Sort sits alone on its own line, so let it span the full width instead of
+   leaving a lopsided half-empty gap beside it. */
+#fSort{grid-column:1 / -1}
+#count{font-size:14px;margin:16px 0 8px;text-align:center}
 
 /* ---------- listing rows ---------- */
 #list{display:grid;gap:8px}
@@ -150,6 +156,8 @@ footer{margin:40px 0 0;padding:24px 0 40px;border-top:1px solid var(--line);text
 @media(min-width:560px){
   #stats{grid-template-columns:repeat(4,1fr)}
   .filter-grid{grid-template-columns:repeat(3,1fr)}
+  /* three across on a wide screen, so sort no longer needs its own line */
+  #fSort{grid-column:auto}
 }
 @media(prefers-reduced-motion:reduce){#splash{transition:none}}
 </style>
@@ -274,4 +282,4 @@ footer{margin:40px 0 0;padding:24px 0 40px;border-top:1px solid var(--line);text
 
 <script src="app.js" defer></script>
 </body>
-        </html>
+</html>
