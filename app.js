@@ -1,5 +1,5 @@
 /* ============================================================
-   SHELF SYNC - app.js  (v2.1)
+   SHELF SYNC - app.js  (v2.2)
 
    Plain JavaScript. No React, no build step, no JSX.
    Edit this file directly in GitHub and reload the page.
@@ -17,7 +17,7 @@
    ============================================================ */
 'use strict';
 
-var APP_VERSION = '2.1';
+var APP_VERSION = '2.2';
 var STORAGE_KEY = 'shelf-sync-listings';
 var LEGACY_KEY = 'ebay-manifest-listings';   /* old "The Manifest" data */
 var PAGE_SIZE = 40;
@@ -474,15 +474,19 @@ function seoPrompt(l) {
     'Current title: ' + (l.title || '(unknown)')
   ];
   if (l.category) lines.push('Category: ' + l.category);
+  if (l.price) lines.push('Current price: $' + l.price);
+  if (l.watchers) lines.push('Watchers: ' + l.watchers);
   if (days !== null) lines.push('It has been listed about ' + days + ' days without selling.');
   lines.push('');
+  lines.push('Note: you probably cannot open an eBay link, because eBay blocks most tools. Do not guess at my photos, description, or shipping cost. Work from the details above, and tell me plainly which parts you could not see.');
+  lines.push('');
   lines.push('Please do all of the following:');
-  lines.push('1. Open the listing and audit the current title, description, photos and price.');
-  lines.push('2. Write a new title using close to all 80 characters, with the strongest buyer search keywords in the first 60.');
-  lines.push('3. Rewrite the item description. Keywords in the first two lines, short scannable lines, no filler or clutter words.');
-  lines.push('4. Tell me exactly which item specifics are missing or weak, and what to put in each one.');
-  lines.push('5. Sanity check the price against recent completed sales for the same item.');
-  lines.push('6. List anything else holding this listing back in search, in priority order.');
+  lines.push('1. Rewrite the title. Get as close to 80 characters as possible without going over, put the strongest buyer search keywords in the first 60, spell the product name out in full instead of abbreviating it, and give me the exact character count.');
+  lines.push('2. Rewrite the item description. Keywords in the first two lines, short scannable lines a phone buyer can skim, no filler and no "check out my other items".');
+  lines.push('3. List every item specific eBay offers for this category, with the exact value I should enter in each one. Flag any specific that would be wrong or misleading for this item.');
+  lines.push('4. Search the web for what this item sells for new and used right now, tell me whether my price looks high, low, or about right, and include the links you used.');
+  lines.push('5. Tell me what to check on my end that you cannot see: photo quality, total delivered cost including shipping, and whether I have this item listed twice.');
+  lines.push('6. List everything holding this listing back, in priority order, with the cheapest and easiest fixes first.');
   return lines.join('\n');
 }
 
@@ -972,4 +976,4 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('./service-worker.js').catch(function () { });
   });
-                 }
+                             }
