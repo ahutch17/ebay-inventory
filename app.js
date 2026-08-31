@@ -1,5 +1,5 @@
 /* ============================================================
-   SHELF SYNC - app.js  (v2.2)
+   SHELF SYNC - app.js  (v2.3)
 
    Plain JavaScript. No React, no build step, no JSX.
    Edit this file directly in GitHub and reload the page.
@@ -14,11 +14,15 @@
    4. Tapping a row opens a card in the middle of the screen with the SEO
       checklist, a live eBay link, reset freshness, and Copy SEO Prompt.
    5. Long lists load 40 at a time so 3,000+ listings stay fast.
+   6. Available quantity is visible on every row and in the detail card.
+   7. Separate e-dh19 and e-dh20 imports, labels, filters, and safe
+      sold-listing cleanup that only checks the selected store.
    ============================================================ */
 'use strict';
 
-var APP_VERSION = '2.2';
+var APP_VERSION = '2.3';
 var STORAGE_KEY = 'shelf-sync-listings';
+var STORES = ['e-dh19', 'e-dh20'];
 var LEGACY_KEY = 'ebay-manifest-listings';   /* old "The Manifest" data */
 var PAGE_SIZE = 40;
 var EBAY_ITEM_URL = 'https://www.ebay.com/itm/';
@@ -132,7 +136,7 @@ function blankChecks(fields) {
 function newListing() {
   return {
     id: 'l' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
-    itemNumber: '', title: '', sku: '', category: '',
+    itemNumber: '', title: '', sku: '', category: '', store: '',
     startDate: '', freshnessResetAt: '',
     quantity: '', price: '', sold: '', watchers: '',
     priority: 'medium', notes: '',
@@ -143,7 +147,7 @@ function newListing() {
 function normalize(raw) {
   var l = newListing();
   if (!raw || typeof raw !== 'object') return l;
-  var keys = ['itemNumber', 'title', 'sku', 'category', 'startDate', 'freshnessResetAt',
+  var keys = ['itemNumber', 'title', 'sku', 'category', 'store', 'startDate', 'freshnessResetAt',
     'quantity', 'price', 'sold', 'watchers', 'priority', 'notes', 'lastImportedAt'];
   for (var i = 0; i < keys.length; i++) {
     if (raw[keys[i]] !== undefined && raw[keys[i]] !== null) l[keys[i]] = String(raw[keys[i]]);
@@ -176,7 +180,7 @@ function save() {
 }
 
 /* ---------------- state ---------------- */
-var state = { listings: [], visible: PAGE_SIZE, q: '', loc: '', cat: '', sort: 'stale' };
+var state = { listings: [], visible: PAGE_SIZE, q: '', store: '', loc: '', cat: '', sort: 'stale' };
 function findListing(id) {
   for (var i = 0; i < state.listings.length; i++) if (state.listings[i].id === id) return state.listings[i];
   return null;
@@ -212,10 +216,11 @@ function legacyCopy(text) {
 
 /* ---------------- filtering + sorting ---------------- */
 function matches(l) {
+  if (state.store && (l.store || '') !== state.store) return false;
   if (state.loc && (l.sku || '') !== state.loc) return false;
   if (state.cat && (l.category || '') !== state.cat) return false;
   if (state.q) {
-    var hay = ((l.title || '') + ' ' + (l.sku || '') + ' ' + (l.itemNumber || '') + ' ' + (l.category || '')).toLowerCase();
+    var hay = ((l.title || '') + ' ' + (l.store || '') + ' ' + (l.sku || '') + ' ' + (l.itemNumber || '') + ' ' + (l.category || '')).toLowerCase();
     if (hay.indexOf(state.q.toLowerCase()) === -1) return false;
   }
   return true;
@@ -289,8 +294,10 @@ function renderControls() {
   if (!box) return;
   if (!state.listings.length) { box.hidden = true; return; }
   box.hidden = false;
+  fillSelect($('fStore'), STORES, '🏷️ All stores', state.store);
   fillSelect($('fLoc'), uniqueValues('sku'), '📍 All bins', state.loc);
   fillSelect($('fCat'), uniqueValues('category'), '📂 All categories', state.cat);
+  state.store = $('fStore').value;
   state.loc = $('fLoc').value;
   state.cat = $('fCat').value;
   $('fSort').value = state.sort;
@@ -362,8 +369,15 @@ function listingRow(l) {
   for (k in l.work) if (l.work[k]) flags++;
   for (k in l.seo) if (l.seo[k]) seoDone++;
 
+  var qtyNumber = parseInt(l.quantity, 10);
+  var hasQty = String(l.quantity || '').trim() !== '';
+  var qtyText = !hasQty ? 'Qty —' : (qtyNumber <= 0 ? 'Out of stock' : 'Qty ' + l.quantity);
+  var qtyClass = 'qty-pill' + (hasQty && qtyNumber <= 0 ? ' qty-zero' : '');
+
   var meta = el('div', { class: 'row-meta' }, [
+    el('span', { class: 'pill store-pill', text: l.store || 'store not set' }),
     el('span', { class: 'pill', text: l.sku ? l.sku : 'no bin' }),
+    el('span', { class: qtyClass, text: qtyText }),
     l.category ? el('span', { class: 'cat', text: l.category }) : null,
     flags
       ? el('span', { class: 'flag', text: flags + ' to fix' })
@@ -380,7 +394,7 @@ function listingRow(l) {
 
   return el('button', {
     class: 'row', type: 'button',
-    'aria-label': (l.title || 'listing') + ', ' + (l.sku ? 'bin ' + l.sku : 'no bin') + ', ' + (days === null ? 'no start date' : days + ' days'),
+    'aria-label': (l.title || 'listing') + ', store ' + (l.store || 'not set') + ', ' + (l.sku ? 'bin ' + l.sku : 'no bin') + ', ' + qtyText + ', ' + (days === null ? 'no start date' : days + ' days'),
     onclick: function () { openDetail(l.id); }
   }, [
     binTile(l),
@@ -473,7 +487,9 @@ function seoPrompt(l) {
     'Listing: ' + url,
     'Current title: ' + (l.title || '(unknown)')
   ];
+  if (l.store) lines.push('eBay store: ' + l.store);
   if (l.category) lines.push('Category: ' + l.category);
+  if (l.quantity !== '') lines.push('Available quantity: ' + l.quantity);
   if (l.price) lines.push('Current price: $' + l.price);
   if (l.watchers) lines.push('Watchers: ' + l.watchers);
   if (days !== null) lines.push('It has been listed about ' + days + ' days without selling.');
@@ -538,6 +554,14 @@ function openDetail(id) {
   notes.value = listing.notes;
   notes.addEventListener('input', function () { listing.notes = notes.value; touch(); });
 
+  var storeSelect = el('select', { class: 'in' });
+  storeSelect.appendChild(el('option', { value: '', text: 'Choose a store' }));
+  for (var st = 0; st < STORES.length; st++) {
+    storeSelect.appendChild(el('option', { value: STORES[st], text: STORES[st] }));
+  }
+  storeSelect.value = listing.store || '';
+  storeSelect.addEventListener('change', function () { listing.store = storeSelect.value; touch(); });
+
   var actions = el('div', { style: 'display:grid;gap:8px' });
   var copyBtn = el('button', {
     class: 'btn btn-solid btn-full', type: 'button', text: 'Copy SEO prompt',
@@ -567,6 +591,10 @@ function openDetail(id) {
     daysLine,
     field('Title', textInput(listing.title, 'Vintage 1990s denim jacket, size M', function (v) { listing.title = v; touch(); })),
     el('div', { class: 'two' }, [
+      field('eBay store', storeSelect),
+      field('Available quantity', textInput(listing.quantity, '1', function (v) { listing.quantity = v; touch(); }, 'number'))
+    ]),
+    el('div', { class: 'two' }, [
       field('eBay item number', textInput(listing.itemNumber, '188551378124', function (v) {
         listing.itemNumber = v.trim();
         ebaySlot.innerHTML = '';
@@ -594,6 +622,7 @@ function openDetail(id) {
         class: 'btn btn-solid', type: 'button', text: 'Add listing',
         onclick: function () {
           if (!listing.title.trim()) { toast('Give it a title first.'); return; }
+          if (!listing.store) { toast('Choose which eBay store it belongs to.'); return; }
           state.listings.push(listing);
           save(); renderAll(); closeModal();
           toast('Added to the shelf.');
@@ -639,26 +668,38 @@ function findCol(headers, candidates) {
   return null;
 }
 function cell(row, col) { return col ? String(row[col] === undefined || row[col] === null ? '' : row[col]).trim() : ''; }
-function keyFor(o) {
+function legacyKeyFor(o) {
   if (o.itemNumber) return 'n:' + o.itemNumber;
   if (o.sku) return 's:' + o.sku.toLowerCase();
   return 't:' + (o.title || '').toLowerCase();
 }
+function keyFor(o) {
+  return 'store:' + String(o.store || 'unassigned').toLowerCase() + '|' + legacyKeyFor(o);
+}
 
 function openImport() {
+  var storeSelect = el('select', { class: 'in', id: 'importStore', 'aria-label': 'Store for this CSV' });
+  storeSelect.appendChild(el('option', { value: '', text: 'Choose a store' }));
+  for (var i = 0; i < STORES.length; i++) {
+    storeSelect.appendChild(el('option', { value: STORES[i], text: STORES[i] }));
+  }
   var body = [
-    el('p', { class: 'note' }, 'In Seller Hub open Active listings, then Download report, and export as CSV. Item age is read straight from the Start date column.'),
-    el('p', { class: 'note' }, 'Items already on your shelf keep their checklists and notes. Anything missing from the new file has sold, and you will be asked whether to remove it.'),
+    el('p', { class: 'note' }, 'Choose the store first, then select that store’s separate Active listings CSV.'),
+    field('Store for this CSV', storeSelect),
+    el('p', { class: 'note' }, 'Item age and quantity are read from the report. Sold-listing cleanup is limited to the selected store, so importing one store cannot remove listings from the other.'),
     el('button', {
       class: 'btn btn-solid btn-full', type: 'button', text: 'Choose CSV file',
-      onclick: function () { $('csvInput').click(); }
+      onclick: function () {
+        if (!storeSelect.value) { toast('Choose e-dh19 or e-dh20 first.'); return; }
+        $('csvInput').click();
+      }
     }),
     el('div', { id: 'importResult' })
   ];
   openModal('Import from eBay', body, [el('button', { class: 'btn btn-quiet', type: 'button', text: 'Close', onclick: closeModal })]);
 }
 
-function runImport(file) {
+function runImport(file, store) {
   var out = $('importResult');
   if (typeof Papa === 'undefined') {
     if (out) { out.innerHTML = ''; out.appendChild(el('p', { class: 'note', text: 'The CSV reader did not load. Check your connection and reload the page.' })); }
@@ -708,8 +749,11 @@ function runImport(file) {
         if (!parentKeys[k]) { parentKeys[k] = true; candidates.push(row); }
       }
 
-      var existing = {};
-      for (i = 0; i < state.listings.length; i++) existing[keyFor(state.listings[i])] = state.listings[i];
+      var existing = {}, unassigned = {};
+      for (i = 0; i < state.listings.length; i++) {
+        existing[keyFor(state.listings[i])] = state.listings[i];
+        if (!state.listings[i].store) unassigned[legacyKeyFor(state.listings[i])] = state.listings[i];
+      }
 
       var stamp = new Date().toISOString();
       var seen = {}, added = 0, refreshed = 0, dupes = 0, noDate = 0;
@@ -717,6 +761,7 @@ function runImport(file) {
       for (i = 0; i < candidates.length; i++) {
         row = candidates[i];
         var data = {
+          store: store,
           itemNumber: cell(row, cNum),
           title: cell(row, cTitle),
           sku: cell(row, cSku),
@@ -733,8 +778,9 @@ function runImport(file) {
         if (seen[key]) { dupes++; continue; }
         seen[key] = true;
 
-        var hit = existing[key];
+        var hit = existing[key] || unassigned[legacyKeyFor(data)];
         if (hit) {
+          hit.store = store;
           hit.title = data.title || hit.title;
           hit.category = data.category || hit.category;
           hit.sku = data.sku || hit.sku;
@@ -748,6 +794,7 @@ function runImport(file) {
           refreshed++;
         } else {
           var fresh = newListing();
+          fresh.store = store;
           fresh.itemNumber = data.itemNumber;
           fresh.title = data.title;
           fresh.sku = data.sku;
@@ -767,6 +814,7 @@ function runImport(file) {
       var missing = [];
       for (i = 0; i < state.listings.length; i++) {
         var l = state.listings[i];
+        if ((l.store || '') !== store) continue;
         if (l.lastImportedAt === stamp) continue;
         if (!l.lastImportedAt) continue;   /* added by hand, never touch */
         missing.push(l.id);
@@ -777,7 +825,7 @@ function runImport(file) {
       try { if (window.Cloud) window.Cloud.pushCatalog(state.listings); } catch (e) { }
       state.visible = PAGE_SIZE;
       renderAll();
-      showImportResult({ added: added, refreshed: refreshed, dupes: dupes, noDate: noDate, missing: missing });
+      showImportResult({ store: store, added: added, refreshed: refreshed, dupes: dupes, noDate: noDate, missing: missing });
     },
     error: function () {
       out.innerHTML = '';
@@ -791,7 +839,7 @@ function showImportResult(r) {
   if (!out) return;
   out.innerHTML = '';
   var box = el('div', { style: 'background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:6px' });
-  box.appendChild(el('p', { class: 'label', text: 'Import complete' }));
+  box.appendChild(el('p', { class: 'label', text: 'Import complete — ' + r.store }));
   box.appendChild(el('p', { class: 'note', text: r.added + ' new listing' + (r.added === 1 ? '' : 's') + ' added' }));
   if (r.refreshed) box.appendChild(el('p', { class: 'note', text: r.refreshed + ' already tracked, details refreshed' }));
   if (r.dupes) box.appendChild(el('p', { class: 'note', text: r.dupes + ' duplicate row' + (r.dupes === 1 ? '' : 's') + ' skipped, these are size variations' }));
@@ -800,7 +848,7 @@ function showImportResult(r) {
 
   if (r.missing.length) {
     var warn = el('div', { style: 'margin-top:12px;display:grid;gap:8px' }, [
-      el('p', { class: 'note', text: r.missing.length + ' listing' + (r.missing.length === 1 ? '' : 's') + ' on your shelf are not in this file, which usually means they sold.' }),
+      el('p', { class: 'note', text: r.missing.length + ' ' + r.store + ' listing' + (r.missing.length === 1 ? '' : 's') + ' are not in this file, which usually means they sold.' }),
       el('button', {
         class: 'btn btn-danger btn-full', type: 'button',
         text: 'Remove ' + r.missing.length + ' sold listing' + (r.missing.length === 1 ? '' : 's'),
@@ -903,13 +951,17 @@ on('restoreBtn', 'click', function () { var r = $('restoreInput'); if (r) r.clic
 on('resetBtn', 'click', confirmErase);
 
 on('fSearch', 'input', function (e) { state.q = e.target.value; state.visible = PAGE_SIZE; renderList(); });
+on('fStore', 'change', function (e) { state.store = e.target.value; state.visible = PAGE_SIZE; renderList(); });
 on('fLoc', 'change', function (e) { state.loc = e.target.value; state.visible = PAGE_SIZE; renderList(); });
 on('fCat', 'change', function (e) { state.cat = e.target.value; state.visible = PAGE_SIZE; renderList(); });
 on('fSort', 'change', function (e) { state.sort = e.target.value; state.visible = PAGE_SIZE; renderList(); });
 
 on('csvInput', 'change', function (e) {
   var f = e.target.files && e.target.files[0];
-  if (f) runImport(f);
+  var storeNode = $('importStore');
+  var store = storeNode ? storeNode.value : '';
+  if (f && store) runImport(f, store);
+  else if (f) toast('Choose which store this CSV came from.');
   e.target.value = '';
 });
 on('restoreInput', 'change', function (e) {
@@ -925,11 +977,11 @@ state.listings = load();
    Nothing is saved to the device in demo mode. */
 if (location.search.indexOf('demo=1') !== -1 || window.SHELF_SYNC_DEMO) {
   var samples = [
-    ['188551378124', "Mata Women's Revolution Brown Half Zipper Knee High Boots", 'poster box #1', 'Boots', 88, 6],
-    ['295512340011', 'Stephen King Pet Sematary First Edition Hardcover Book', 'bookshelf-book', 'Books', 41, 2],
-    ['295512340012', 'Marvel Secret Wars Complete Comic Run Lot of 12 Issues', 'below books', 'Comics & Graphic Novels', 12, 9],
-    ['295512340013', 'Vintage Leather Work Gloves Size Large Insulated Pair', 'abby', 'Gloves & Mitts', 6, 0],
-    ['', 'Blu-ray Movie Bundle, 8 Discs, Action and Sci-Fi', '', 'DVDs & Blu-ray Discs', 137, 14]
+    ['188551378124', "Mata Women's Revolution Brown Half Zipper Knee High Boots", 'poster box #1', 'Boots', 88, 6, 'e-dh19', '2'],
+    ['295512340011', 'Stephen King Pet Sematary First Edition Hardcover Book', 'bookshelf-book', 'Books', 41, 2, 'e-dh20', '1'],
+    ['295512340012', 'Marvel Secret Wars Complete Comic Run Lot of 12 Issues', 'below books', 'Comics & Graphic Novels', 12, 9, 'e-dh19', '4'],
+    ['295512340013', 'Vintage Leather Work Gloves Size Large Insulated Pair', 'abby', 'Gloves & Mitts', 6, 0, 'e-dh20', '0'],
+    ['', 'Blu-ray Movie Bundle, 8 Discs, Action and Sci-Fi', '', 'DVDs & Blu-ray Discs', 137, 14, 'e-dh19', '8']
   ];
   for (var d = 0; d < samples.length; d++) {
     var sample = newListing();
@@ -939,6 +991,8 @@ if (location.search.indexOf('demo=1') !== -1 || window.SHELF_SYNC_DEMO) {
     sample.category = samples[d][3];
     sample.startDate = toISODate(new Date(Date.now() - samples[d][4] * 86400000));
     sample.watchers = String(samples[d][5]);
+    sample.store = samples[d][6];
+    sample.quantity = samples[d][7];
     sample.lastImportedAt = new Date().toISOString();
     if (d === 3) { sample.work.photos = true; sample.work.price = true; }
     if (d === 1) { sample.seo.fullTitle = true; sample.seo.sixPhotos = true; }
@@ -976,4 +1030,4 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('./service-worker.js').catch(function () { });
   });
-                             }
+}
