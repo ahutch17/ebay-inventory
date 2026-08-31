@@ -106,12 +106,8 @@ header{border-bottom:1px solid var(--line);background:var(--cream);position:stic
 #controls{margin:20px 0 0;display:grid;gap:8px}
 .in{width:100%;min-height:44px;padding:10px 12px;background:var(--surface);border:1px solid var(--line);border-radius:8px;font:inherit;color:var(--body)}
 .in:focus{border-color:var(--ink);outline:none}
-/* Bins needs less room than categories, so split the row 45/55 instead of
-   50/50 - that is what clipped "All categories" down to "All categori". */
-.filter-grid{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:8px}
-/* Sort sits alone on its own line, so let it span the full width instead of
-   leaving a lopsided half-empty gap beside it. */
-#fSort{grid-column:1 / -1}
+/* Four compact controls: store, bin, category and sort. */
+.filter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 #count{font-size:14px;margin:16px 0 8px;text-align:center}
 
 /* ---------- listing rows ---------- */
@@ -124,7 +120,11 @@ header{border-bottom:1px solid var(--line);background:var(--cream);position:stic
 /* The meta strip is allowed to wrap. Squeezing the bin pill, the category and
    the SEO chip onto one 200px line is what produced "Art ... S...". */
 .row-meta{display:flex;align-items:center;gap:4px 6px;flex-wrap:wrap;margin-top:5px}
-.pill{flex:0 0 auto;font-size:12px;padding:2px 8px;border-radius:999px;background:var(--sage);color:var(--ink);white-space:nowrap}
+.pill,.qty-pill{flex:0 0 auto;font-size:12px;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.pill{background:var(--sage);color:var(--ink)}
+.store-pill{background:#E7E9E2;border:1px solid var(--sage);font-weight:700}
+.qty-pill{background:#E9F0EA;color:var(--fresh);border:1px solid #C9D9CC;font-weight:700}
+.qty-zero{background:#F3E4DC;color:var(--stale);border-color:#DFC3B8}
 .cat,.flag{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;min-width:0}
 /* When a real category is present, drop the quiet "SEO 0/5" chip beside it.
    The full checklist is still one tap away inside the listing card. */
@@ -162,9 +162,6 @@ footer{margin:40px 0 0;padding:24px 0 40px;border-top:1px solid var(--line);text
 
 @media(min-width:560px){
   #stats{grid-template-columns:repeat(4,1fr)}
-  .filter-grid{grid-template-columns:repeat(3,1fr)}
-  /* three across on a wide screen, so sort no longer needs its own line */
-  #fSort{grid-column:auto}
 }
 @media(prefers-reduced-motion:reduce){#splash{transition:none}}
 </style>
@@ -238,8 +235,9 @@ footer{margin:40px 0 0;padding:24px 0 40px;border-top:1px solid var(--line);text
   <div id="stats" hidden></div>
 
   <div id="controls" hidden>
-    <input id="fSearch" class="in" type="search" placeholder="Search title, location or item number" aria-label="Search listings">
+    <input id="fSearch" class="in" type="search" placeholder="Search title, store, location or item number" aria-label="Search listings">
     <div class="filter-grid">
+      <select id="fStore" class="in" aria-label="Filter by eBay store"></select>
       <select id="fLoc" class="in" aria-label="Filter by location"></select>
       <select id="fCat" class="in" aria-label="Filter by category"></select>
       <select id="fSort" class="in" aria-label="Sort listings">
