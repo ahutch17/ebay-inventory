@@ -12,7 +12,7 @@
    import replaces the catalog without ever touching your checklists.
 ----------------------------------------------------------------*/
 
-var CLOUD_VERSION = '1.0';
+var CLOUD_VERSION = '1.1';
 
 var FIREBASE_CONFIG = {
   apiKey: 'AIzaSyDbcnUwVyI9Oti7fvi9oUEkOjo45MwJaGw',
@@ -47,9 +47,10 @@ function say(msg) {
 
 function keyOf(l) {
   var raw;
-  if (l && l.itemNumber) raw = 'n_' + l.itemNumber;
-  else if (l && l.sku) raw = 's_' + String(l.sku).toLowerCase();
-  else raw = 't_' + String((l && l.title) || '').toLowerCase();
+  var store = String((l && l.store) || 'unassigned').toLowerCase();
+  if (l && l.itemNumber) raw = store + '_n_' + l.itemNumber;
+  else if (l && l.sku) raw = store + '_s_' + String(l.sku).toLowerCase();
+  else raw = store + '_t_' + String((l && l.title) || '').toLowerCase();
   return raw.replace(/[^A-Za-z0-9_-]+/g, '-').slice(0, 100);
 }
 
@@ -62,6 +63,7 @@ function shape(l) {
 function catalogRow(l) {
   return {
     id: l.id || '',
+    store: l.store || '',
     itemNumber: l.itemNumber || '',
     title: l.title || '',
     sku: l.sku || '',
@@ -270,7 +272,7 @@ function pushCatalog(list, done) {
   }
   lastImportSeen = Date.now();
   batch.set(db.doc(SHELF + '/meta/state'), {
-    schema: 1,
+    schema: 2,
     chunkCount: chunks.length,
     listingCount: list.length,
     lastImportAt: lastImportSeen,
